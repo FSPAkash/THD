@@ -3,13 +3,13 @@ nixPkgs = ["nodejs-18_x", "python311"]
 
 [phases.install]
 cmds = [
-"cd frontend && npm install",
+"npm install --prefix frontend",
 "python -m venv /opt/venv",
 "/opt/venv/bin/pip install -r backend/requirements.txt"
 ]
 
 [phases.build]
-cmds = ["cd frontend && npm run build"]
+cmds = ["npm run build --prefix frontend"]
 
 [start]
 cmd = "/opt/venv/bin/gunicorn app:app --bind 0.0.0.0:$PORT --chdir backend"

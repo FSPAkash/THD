@@ -3,7 +3,6 @@
     "builder": "nixpacks"
   },
   "deploy": {
-    "startCommand": "cd frontend && npm run build && cd .. && cd backend && gunicorn app:app --bind 0.0.0.0:$PORT",
     "restartPolicyType": "on_failure",
     "restartPolicyMaxRetries": 10
   }
