@@ -1,4 +1,3 @@
-@"
 {
   "build": {
     "builder": "nixpacks"
@@ -8,4 +7,3 @@
     "restartPolicyMaxRetries": 10
   }
 }
-"@ | Set-Content -Path "railway.json"
