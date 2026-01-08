@@ -1,0 +1,284 @@
+.analysis-page {
+  max-width: 100%;
+}
+
+.analysis-header {
+  margin-bottom: 24px;
+}
+
+.header-title h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+  margin-bottom: 4px;
+}
+
+.header-title p {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.analysis-meta {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 20px;
+  background: rgba(238, 113, 37, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: 12px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  letter-spacing: -0.03em;
+}
+
+.meta-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.meta-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.meta-divider {
+  width: 1px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.analysis-table-wrapper {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.analysis-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 800px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.analysis-table th {
+  padding: 16px 20px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  background: rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  white-space: nowrap;
+}
+
+.analysis-table th.highlight-col {
+  background: var(--orange-light);
+  color: var(--orange-primary);
+}
+
+.analysis-table td {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.analysis-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.analysis-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.01);
+}
+
+.sticky-col {
+  position: sticky;
+  left: 0;
+  background: rgba(255, 255, 255, 0.98);
+  z-index: 1;
+}
+
+.analysis-table tbody tr:hover .sticky-col {
+  background: rgba(250, 250, 250, 0.98);
+}
+
+.kpi-name {
+  font-weight: 700;
+  color: var(--orange-primary);
+}
+
+.analysis-table td.positive {
+  color: var(--positive);
+}
+
+.analysis-table td.negative {
+  color: var(--negative);
+}
+
+.analysis-table td.highlight-col {
+  background: rgba(249, 99, 2, 0.02);
+}
+
+.comp-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.highlight-col.positive .comp-badge {
+  background: var(--positive-bg);
+  color: var(--positive);
+}
+
+.highlight-col.negative .comp-badge {
+  background: var(--negative-bg);
+  color: var(--negative);
+}
+
+.empty-analysis {
+  padding: 60px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+}
+
+.empty-analysis p {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.analysis-legend {
+  padding: 20px 24px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+}
+
+.analysis-legend h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 16px;
+}
+
+.legend-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.legend-item {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.legend-term {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--orange-primary);
+}
+
+.legend-def {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+  .analysis-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .meta-divider {
+    width: 100%;
+    height: 1px;
+  }
+  
+  .legend-grid {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+/* Add these to your existing AdvancedAnalysis.css */
+
+/* Beta Badge in Header */
+.analysis-beta-badge {
+  padding: 4px 10px;
+  background: rgba(238,113,37,0.85);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+
+.analysis-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+/* Beta Notice Banner */
+.beta-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.beta-notice svg {
+  color: #667eea;
+  flex-shrink: 0;
+}
+
+.beta-notice span {
+  font-size: 13px;
+  color: #5a67d8;
+  line-height: 1.5;
+}
+
+/* Beta Mode Table */
+.analysis-table.beta-mode .placeholder-cell {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.analysis-table.beta-mode thead th {
+  font-size: 11px;
+}
+

@@ -1,0 +1,273 @@
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-container {
+  background: rgba(255, 255, 255);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.25s ease;
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  padding: 24px 24px 0;
+  gap: 8px;
+}
+
+.modal-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.modal-unit-badge {
+  background: rgba(249, 99, 2, 0.1);
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+}
+
+.modal-beta-badge {
+  padding: 4px 10px;
+  background: rgba(238,113,37,0.85);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+.modal-close {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--text-tertiary);
+  transition: background 0.15s ease, color 0.15s ease;
+  margin-left: auto;
+}
+
+.modal-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.period-section {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.period-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.period-header h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.period-lift {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--neutral);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.period-lift .lift-arrow {
+  font-weight: 900;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.period-lift.positive {
+  color: var(--positive);
+}
+
+.period-lift.negative {
+  color: var(--negative);
+}
+
+.period-data {
+  display: flex;
+  gap: 40px;
+}
+
+.data-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.data-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.data-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.data-value.muted {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.data-value.beta-placeholder {
+  color: #667eea;
+  font-style: italic;
+  font-weight: 600;
+}
+
+.comp-section {
+  background: linear-gradient(135deg, rgba(249, 99, 2, 0.04) 0%, rgba(249, 99, 2, 0.08) 100%);
+  margin: 0 -24px -24px;
+  padding: 24px;
+  border-radius: 0 0 24px 24px;
+}
+
+.comp-header {
+  margin-bottom: 12px;
+}
+
+.comp-header h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.comp-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.comp-arrow {
+  font-size: 40px;
+  font-weight: 900;
+  color: var(--neutral);
+  line-height: 1;
+}
+
+.comp-result.positive .comp-arrow {
+  color: var(--positive);
+}
+
+.comp-result.negative .comp-arrow {
+  color: var(--negative);
+}
+
+.comp-value {
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.comp-result.positive .comp-value {
+  color: var(--positive);
+}
+
+.comp-result.negative .comp-value {
+  color: var(--negative);
+}
+
+.comp-explanation {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .modal-backdrop {
+    padding: 0;
+    align-items: flex-end;
+  }
+  
+  .modal-container {
+    max-width: 100%;
+    border-radius: 24px 24px 0 0;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+  
+  .comp-section {
+    border-radius: 0;
+  }
+  
+  .period-data {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .comp-value {
+    font-size: 40px;
+  }
+  
+  .comp-arrow {
+    font-size: 36px;
+  }
+}
