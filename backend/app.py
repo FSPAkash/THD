@@ -120,6 +120,14 @@ def load_cached_data():
 
 load_cached_data()
 
+# Initialize keep-alive service for Render.com (must be at module level for Gunicorn)
+if KEEP_ALIVE_AVAILABLE:
+    try:
+        init_keep_alive()
+        print("Keep-alive service initialized")
+    except Exception as e:
+        print(f"Failed to initialize keep-alive: {e}")
+
 
 @app.route('/')
 def serve():
@@ -670,9 +678,5 @@ if __name__ == '__main__':
     print(f"Email Available: {EMAIL_AVAILABLE}")
     if EMAIL_AVAILABLE:
         print("Email Type: Local Outlook Application")
-
-    # Initialize keep-alive service for Render.com
-    if KEEP_ALIVE_AVAILABLE:
-        init_keep_alive()
 
     app.run(host='0.0.0.0', port=port, debug=debug)
