@@ -7,3 +7,7 @@ backend/.env
 .gitignore
 *.log
 .DS_Store
+frontend/build
+backend/data/*.xlsx
+*.md
+.vscode

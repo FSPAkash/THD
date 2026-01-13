@@ -27,9 +27,9 @@ class Config:
             'role': 'viewer',
             'name': 'Akash'
         },
-        'Beta': {
-            'password': 'beta2024',
-            'role': 'beta',
-            'name': 'Beta Tester'
+        'Connor': {
+            'password': 'c123',
+            'role': 'viewer',
+            'name': 'Connor'
         }
     }

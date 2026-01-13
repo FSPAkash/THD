@@ -1,11 +1,11 @@
 [phases.setup]
-nixPkgs = ["nodejs-18_x", "python311", "gcc-unwrapped"]
+nixPkgs = ["nodejs-18_x", "python311", "gcc-unwrapped", "wkhtmltopdf"]
 
 [phases.install]
 cmds = [
-"npm install --prefix frontend",
-"python -m venv /opt/venv",
-"/opt/venv/bin/pip install -r backend/requirements.txt"
+  "npm install --prefix frontend",
+  "python -m venv /opt/venv",
+  "/opt/venv/bin/pip install -r backend/requirements.txt"
 ]
 
 [phases.build]
