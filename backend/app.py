@@ -33,6 +33,13 @@ except ImportError as e:
     print(f"Email service not available: {e}")
     EMAIL_AVAILABLE = False
 
+try:
+    from keep_alive import init_keep_alive
+    KEEP_ALIVE_AVAILABLE = True
+except ImportError as e:
+    print(f"Keep-alive service not available: {e}")
+    KEEP_ALIVE_AVAILABLE = False
+
 
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -663,4 +670,9 @@ if __name__ == '__main__':
     print(f"Email Available: {EMAIL_AVAILABLE}")
     if EMAIL_AVAILABLE:
         print("Email Type: Local Outlook Application")
+
+    # Initialize keep-alive service for Render.com
+    if KEEP_ALIVE_AVAILABLE:
+        init_keep_alive()
+
     app.run(host='0.0.0.0', port=port, debug=debug)

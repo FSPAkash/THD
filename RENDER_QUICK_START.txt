@@ -1,0 +1,99 @@
+================================================================================
+                    RENDER DEPLOYMENT - QUICK START
+================================================================================
+
+1. COMMIT FILES
+   > git add .
+   > git commit -m "Add Render deployment with keep-alive"
+   > git push origin main
+
+2. GO TO RENDER
+   https://render.com → Sign up/Login → New + → Web Service
+
+3. CONNECT REPO
+   Select: THD-Dashboard → Click "Connect"
+
+4. CONFIGURE
+   Build:  ./build.sh
+   Start:  cd backend && gunicorn app:app --bind 0.0.0.0:$PORT
+
+5. ENVIRONMENT VARIABLES
+   SECRET_KEY               = homedepot-dashboard-secret-key-2024-production
+   JWT_SECRET_KEY           = jwt-secret-key-homedepot-2024-production
+   FLASK_ENV                = production
+   FLASK_DEBUG              = false
+   PYTHON_VERSION           = 3.11.0
+   RENDER_EXTERNAL_URL      = https://your-app-name.onrender.com
+
+6. DEPLOY
+   Click "Create Web Service" → Wait 3-5 minutes
+
+================================================================================
+
+YOUR APP URL: https://thd-dashboard.onrender.com (or your chosen name)
+
+LOGIN:
+  Username: admin
+  Password: homedepot123
+
+KEEP-ALIVE:
+  Automatically pings every 14 minutes
+  Prevents sleep on free tier
+  No cold starts after initial load
+
+WHAT WORKS:
+  ✓ Login & authentication
+  ✓ Dashboard & KPIs
+  ✓ Data upload (Excel)
+  ✓ Charts & analytics
+  ✓ PDF generation
+  ✓ Keep-alive service
+
+WHAT DOESN'T WORK:
+  ✗ Email (Windows-only, shows as unavailable)
+
+================================================================================
+
+TROUBLESHOOTING:
+  Build fails?       → Check logs in Render dashboard
+  App crashes?       → Check runtime logs, verify env vars
+  Slow first load?   → Normal, keep-alive prevents subsequent slowness
+  Keep-alive fails?  → Add RENDER_EXTERNAL_URL env var
+
+FILES ADDED:
+  - render.yaml              (Render config)
+  - build.sh                 (Build script)
+  - backend/keep_alive.py    (Keep-alive service)
+  - .env.example             (Environment template)
+  - RENDER_DEPLOYMENT_GUIDE.md
+  - QUICK_DEPLOY_RENDER.md
+  - DEPLOYMENT_SUMMARY.md
+
+FILES REMOVED:
+  - nixpacks.toml (Railway)
+  - railway.json (Railway)
+  - .dockerignore (Railway)
+
+UPDATED FILES:
+  - backend/app.py           (Initialize keep-alive)
+  - backend/requirements.txt (Added requests)
+
+================================================================================
+
+NEXT STEPS:
+  1. Read QUICK_DEPLOY_RENDER.md for details
+  2. Commit and push your code
+  3. Deploy on Render
+  4. Test your app
+  5. Change default passwords before production
+
+FULL GUIDE: See RENDER_DEPLOYMENT_GUIDE.md (12KB, comprehensive)
+
+SUPPORT:
+  Render Docs:      https://render.com/docs
+  Render Community: https://community.render.com
+  Status:           https://status.render.com
+
+================================================================================
+                         READY TO DEPLOY!
+================================================================================
