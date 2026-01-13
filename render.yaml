@@ -4,7 +4,10 @@ services:
     runtime: python
     buildCommand: |
       pip install -r backend/requirements.txt
-      cd frontend && npm install && npx react-scripts build
+      cd frontend
+      npm install
+      npm run build
+      cd ..
     startCommand: cd backend && gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: SECRET_KEY
