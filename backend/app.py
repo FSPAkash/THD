@@ -10,13 +10,14 @@ import traceback
 
 from config import Config
 from utils import (
-    parse_excel_data, 
-    calculate_pre_post_metrics, 
-    get_daily_kpi_data, 
+    parse_excel_data,
+    calculate_pre_post_metrics,
+    get_daily_kpi_data,
     get_kpi_summary,
     get_use_cases,
     get_launch_date,
-    get_stakeholders
+    get_stakeholders,
+    get_daily_comparison_data
 )
 
 try:
@@ -230,10 +231,13 @@ def upload_file():
 def kpi_summary():
     if cached_data['daily_data'] is None:
         return jsonify({'error': 'No data available. Please upload data first.'}), 404
-    
+
     use_case = request.args.get('use_case')
     period = request.args.get('period', 'all')
-    
+    business_segment = request.args.get('business_segment')
+    device_type = request.args.get('device_type')
+    page_type = request.args.get('page_type')
+
     try:
         if use_case:
             filtered_data = cached_data['daily_data'][cached_data['daily_data']['use_case'] == use_case]
@@ -241,10 +245,15 @@ def kpi_summary():
         else:
             filtered_data = cached_data['daily_data']
             launch_date = None
-        
+
         period_days = None if period == 'all' else period
-        summary = get_kpi_summary(filtered_data, launch_date, period_days)
-        
+        summary = get_kpi_summary(
+            filtered_data, launch_date, period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type
+        )
+
         return jsonify({
             'summary': summary,
             'last_updated': cached_data['last_updated'].isoformat() if cached_data['last_updated'] else None
@@ -260,26 +269,32 @@ def kpi_summary():
 def kpi_daily():
     if cached_data['daily_data'] is None:
         return jsonify({'error': 'No data available. Please upload data first.'}), 404
-    
+
     use_case = request.args.get('use_case')
     kpi = request.args.get('kpi', 'visits')
     period = request.args.get('period', 'all')
-    
+    business_segment = request.args.get('business_segment')
+    device_type = request.args.get('device_type')
+    page_type = request.args.get('page_type')
+
     try:
         launch_date = None
         if use_case:
             launch_date = get_launch_date(cached_data['feature_config'], use_case)
-        
+
         period_days = None if period == 'all' else period
-        
+
         result = get_daily_kpi_data(
             cached_data['daily_data'],
             use_case=use_case,
             kpi=kpi,
             launch_date=launch_date,
-            period_days=period_days
+            period_days=period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type
         )
-        
+
         return jsonify({
             'data': result,
             'kpi': kpi,
@@ -292,34 +307,84 @@ def kpi_daily():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/kpi/comparison', methods=['GET'])
+@jwt_required()
+def kpi_comparison():
+    """Get daily TY vs LY comparison data for charts."""
+    if cached_data['daily_data'] is None:
+        return jsonify({'error': 'No data available. Please upload data first.'}), 404
+
+    use_case = request.args.get('use_case')
+    kpi = request.args.get('kpi', 'visits')
+    period = request.args.get('period', 'all')
+    business_segment = request.args.get('business_segment')
+    device_type = request.args.get('device_type')
+    page_type = request.args.get('page_type')
+
+    try:
+        launch_date = None
+        if use_case:
+            launch_date = get_launch_date(cached_data['feature_config'], use_case)
+
+        period_days = None if period == 'all' else period
+
+        result = get_daily_comparison_data(
+            cached_data['daily_data'],
+            use_case=use_case,
+            kpi=kpi,
+            launch_date=launch_date,
+            period_days=period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type
+        )
+
+        return jsonify({
+            'data': result,
+            'kpi': kpi,
+            'period': period,
+            'launch_date': launch_date
+        })
+    except Exception as e:
+        print(f"Comparison Data Error: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/kpi/analysis', methods=['GET'])
 @jwt_required()
 def kpi_analysis():
     if cached_data['daily_data'] is None or cached_data['feature_config'] is None:
         return jsonify({'error': 'No data available. Please upload data first.'}), 404
-    
+
     use_case = request.args.get('use_case')
     period = request.args.get('period', 'all')
-    
+    business_segment = request.args.get('business_segment')
+    device_type = request.args.get('device_type')
+    page_type = request.args.get('page_type')
+
     try:
         period_days = None if period == 'all' else period
-        
+
         results = calculate_pre_post_metrics(
-            cached_data['daily_data'], 
+            cached_data['daily_data'],
             cached_data['feature_config'],
-            period_days=period_days
+            period_days=period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type
         )
-        
+
         if not results:
             return jsonify({
                 'analysis': [],
                 'message': 'No analysis results. Check if launch dates are in the past.',
                 'last_updated': cached_data['last_updated'].isoformat() if cached_data['last_updated'] else None
             })
-        
+
         if use_case:
             results = [r for r in results if r['use_case'] == use_case]
-        
+
         return jsonify({
             'analysis': results,
             'period': period,
@@ -358,6 +423,22 @@ def list_use_cases():
         print(f"Use Cases Error: {str(e)}")
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/segments/page-types', methods=['GET'])
+@jwt_required()
+def get_page_types():
+    """Get unique page types for the filter dropdown."""
+    if cached_data['daily_data'] is None:
+        return jsonify({'page_types': ['All']})
+
+    try:
+        from utils import get_unique_page_types
+        page_types = get_unique_page_types(cached_data['daily_data'])
+        return jsonify({'page_types': page_types})
+    except Exception as e:
+        print(f"Page Types Error: {str(e)}")
+        return jsonify({'page_types': ['All']})
 
 
 @app.route('/api/data/status', methods=['GET'])
@@ -413,47 +494,96 @@ def get_stakeholders_list():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/report/preview', methods=['GET'])
+@app.route('/api/report/preview', methods=['GET', 'POST'])
 @jwt_required()
 def preview_report():
     """Generate PDF preview."""
     if not PDF_AVAILABLE:
         return jsonify({'error': 'PDF generation is not available. Please install weasyprint.'}), 503
-    
+
     if cached_data['daily_data'] is None or cached_data['feature_config'] is None:
         return jsonify({'error': 'No data available'}), 404
-    
-    use_case = request.args.get('use_case')
-    period = request.args.get('period', 'all')
-    
+
+    # Support both GET (simple preview) and POST (with chart data/tags)
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        use_case = data.get('use_case')
+        period = data.get('period', 'all')
+        business_segment = data.get('business_segment')
+        device_type = data.get('device_type')
+        page_type = data.get('page_type')
+        chart_tags = data.get('chart_tags', [])
+        chart_display = data.get('chart_display', 'both')  # 'ty', 'ly', or 'both'
+        selected_kpi = data.get('selected_kpi', 'visits')
+    else:
+        use_case = request.args.get('use_case')
+        period = request.args.get('period', 'all')
+        business_segment = request.args.get('business_segment')
+        device_type = request.args.get('device_type')
+        page_type = request.args.get('page_type')
+        chart_tags = []
+        chart_display = request.args.get('chart_display', 'both')
+        selected_kpi = request.args.get('selected_kpi', 'visits')
+
     if not use_case:
         return jsonify({'error': 'use_case parameter required'}), 400
-    
+
     try:
         period_days = None if period == 'all' else period
-        
+
         analysis = calculate_pre_post_metrics(
             cached_data['daily_data'],
             cached_data['feature_config'],
-            period_days=period_days
+            period_days=period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type
         )
-        
+
         analysis = [r for r in analysis if r['use_case'] == use_case]
-        
+
         if not analysis:
             return jsonify({'error': 'No analysis data for this use case'}), 404
-        
+
         launch_date = analysis[0]['launch_date']
         total_days = analysis[0].get('total_post_days', 0)
         period_days_actual = analysis[0].get('period_days', total_days)
-        
+
         if period == 'all':
             period_label = f"{total_days} days post-launch"
         else:
             period_label = f"{period_days_actual} days post-launch"
-        
-        pdf_data = generate_pdf(analysis, use_case, period_label, launch_date)
-        
+
+        # Build segment filter label
+        segment_filters = []
+        if business_segment and business_segment.lower() not in ['all', '']:
+            segment_filters.append(f"Business: {business_segment}")
+        if device_type and device_type.lower() not in ['all', '']:
+            segment_filters.append(f"Device: {device_type}")
+        if page_type and page_type.lower() not in ['all', '']:
+            segment_filters.append(f"Page: {page_type}")
+        segment_label = " | ".join(segment_filters) if segment_filters else None
+
+        # Get chart comparison data for the PDF
+        chart_data = get_daily_comparison_data(
+            cached_data['daily_data'],
+            use_case=use_case,
+            kpi=selected_kpi,
+            launch_date=launch_date,
+            period_days=period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type
+        )
+
+        pdf_data = generate_pdf(
+            analysis, use_case, period_label, launch_date, segment_label,
+            chart_data=chart_data,
+            chart_tags=chart_tags,
+            chart_display=chart_display,
+            selected_kpi=selected_kpi
+        )
+
         return Response(
             pdf_data,
             mimetype='application/pdf',
@@ -475,66 +605,103 @@ def send_report():
         return jsonify({
             'error': 'Email service is not available. Please install pywin32: pip install pywin32'
         }), 503
-    
+
     if not PDF_AVAILABLE:
         return jsonify({
             'error': 'PDF generation is not available. Please install weasyprint.'
         }), 503
-    
+
     if cached_data['daily_data'] is None or cached_data['feature_config'] is None:
         return jsonify({'error': 'No data available'}), 404
-    
+
     data = request.get_json()
     use_case = data.get('use_case')
     period = data.get('period', 'all')
     recipients = data.get('recipients', [])
-    
+    business_segment = data.get('business_segment')
+    device_type = data.get('device_type')
+    page_type = data.get('page_type')
+    chart_tags = data.get('chart_tags', [])
+    chart_display = data.get('chart_display', 'both')
+    selected_kpi = data.get('selected_kpi', 'visits')
+
     if not use_case:
         return jsonify({'error': 'use_case is required'}), 400
-    
+
     if not recipients:
         return jsonify({'error': 'At least one recipient is required'}), 400
-    
+
     valid_recipients = []
     for email in recipients:
         email = email.strip()
         if email and '@' in email and '.' in email:
             valid_recipients.append(email)
-    
+
     if not valid_recipients:
         return jsonify({'error': 'No valid email addresses provided'}), 400
-    
+
     try:
         period_days = None if period == 'all' else period
-        
+
         analysis = calculate_pre_post_metrics(
             cached_data['daily_data'],
             cached_data['feature_config'],
-            period_days=period_days
+            period_days=period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type
         )
-        
+
         analysis = [r for r in analysis if r['use_case'] == use_case]
-        
+
         if not analysis:
             return jsonify({'error': 'No analysis data for this use case'}), 404
-        
+
         launch_date = analysis[0]['launch_date']
         total_days = analysis[0].get('total_post_days', 0)
         period_days_actual = analysis[0].get('period_days', total_days)
-        
+
         if period == 'all':
             period_label = f"{total_days} days post-launch"
         else:
             period_label = f"{period_days_actual} days post-launch"
-        
+
+        # Build segment filter label
+        segment_filters = []
+        if business_segment and business_segment.lower() not in ['all', '']:
+            segment_filters.append(f"Business: {business_segment}")
+        if device_type and device_type.lower() not in ['all', '']:
+            segment_filters.append(f"Device: {device_type}")
+        if page_type and page_type.lower() not in ['all', '']:
+            segment_filters.append(f"Page: {page_type}")
+        segment_label = " | ".join(segment_filters) if segment_filters else None
+
+        # Get chart comparison data for the PDF
+        chart_data = get_daily_comparison_data(
+            cached_data['daily_data'],
+            use_case=use_case,
+            kpi=selected_kpi,
+            launch_date=launch_date,
+            period_days=period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type
+        )
+
         print(f"Generating PDF for {use_case}...")
-        pdf_data = generate_pdf(analysis, use_case, period_label, launch_date)
+        pdf_data = generate_pdf(
+            analysis, use_case, period_label, launch_date, segment_label,
+            chart_data=chart_data,
+            chart_tags=chart_tags,
+            chart_display=chart_display,
+            selected_kpi=selected_kpi
+        )
         print(f"PDF generated, size: {len(pdf_data)} bytes")
-        
+
         print(f"Sending email via Outlook to {valid_recipients}...")
         result = send_report_email(valid_recipients, use_case, period_label, pdf_data)
         print(f"Email sent successfully via Outlook")
-        
+
         return jsonify({
             'success': True,
             'message': f'Report sent to {len(result["recipients"])} recipient(s) via Outlook',
@@ -554,56 +721,93 @@ def create_report_draft():
         return jsonify({
             'error': 'Email service is not available. Please install pywin32: pip install pywin32'
         }), 503
-    
+
     if not PDF_AVAILABLE:
         return jsonify({
             'error': 'PDF generation is not available. Please install weasyprint.'
         }), 503
-    
+
     if cached_data['daily_data'] is None or cached_data['feature_config'] is None:
         return jsonify({'error': 'No data available'}), 404
-    
+
     data = request.get_json()
     use_case = data.get('use_case')
     period = data.get('period', 'all')
     recipients = data.get('recipients', [])
-    
+    business_segment = data.get('business_segment')
+    device_type = data.get('device_type')
+    page_type = data.get('page_type')
+    chart_tags = data.get('chart_tags', [])
+    chart_display = data.get('chart_display', 'both')
+    selected_kpi = data.get('selected_kpi', 'visits')
+
     if not use_case:
         return jsonify({'error': 'use_case is required'}), 400
-    
+
     valid_recipients = []
     for email in recipients:
         email = email.strip()
         if email and '@' in email and '.' in email:
             valid_recipients.append(email)
-    
+
     try:
         period_days = None if period == 'all' else period
-        
+
         analysis = calculate_pre_post_metrics(
             cached_data['daily_data'],
             cached_data['feature_config'],
-            period_days=period_days
+            period_days=period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type
         )
-        
+
         analysis = [r for r in analysis if r['use_case'] == use_case]
-        
+
         if not analysis:
             return jsonify({'error': 'No analysis data for this use case'}), 404
-        
+
         launch_date = analysis[0]['launch_date']
         total_days = analysis[0].get('total_post_days', 0)
         period_days_actual = analysis[0].get('period_days', total_days)
-        
+
         if period == 'all':
             period_label = f"{total_days} days post-launch"
         else:
             period_label = f"{period_days_actual} days post-launch"
-        
-        pdf_data = generate_pdf(analysis, use_case, period_label, launch_date)
-        
+
+        # Build segment filter label
+        segment_filters = []
+        if business_segment and business_segment.lower() not in ['all', '']:
+            segment_filters.append(f"Business: {business_segment}")
+        if device_type and device_type.lower() not in ['all', '']:
+            segment_filters.append(f"Device: {device_type}")
+        if page_type and page_type.lower() not in ['all', '']:
+            segment_filters.append(f"Page: {page_type}")
+        segment_label = " | ".join(segment_filters) if segment_filters else None
+
+        # Get chart comparison data for the PDF
+        chart_data = get_daily_comparison_data(
+            cached_data['daily_data'],
+            use_case=use_case,
+            kpi=selected_kpi,
+            launch_date=launch_date,
+            period_days=period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type
+        )
+
+        pdf_data = generate_pdf(
+            analysis, use_case, period_label, launch_date, segment_label,
+            chart_data=chart_data,
+            chart_tags=chart_tags,
+            chart_display=chart_display,
+            selected_kpi=selected_kpi
+        )
+
         result = create_draft_email(valid_recipients, use_case, period_label, pdf_data)
-        
+
         return jsonify({
             'success': True,
             'message': 'Draft opened in Outlook',

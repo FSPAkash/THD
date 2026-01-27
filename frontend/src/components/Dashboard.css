@@ -155,6 +155,38 @@
   gap: 12px;
 }
 
+/* TY/LY Display Toggle */
+.chart-display-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
+}
+
+.display-toggle-btn {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.display-toggle-btn:hover:not(.active) {
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.display-toggle-btn.active {
+  background: var(--white);
+  color: var(--orange-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
 .chart-type-selector {
   display: flex;
   gap: 4px;

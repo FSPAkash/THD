@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './Header';
+import FilterBar from './FilterBar';
 import MetricCard from './MetricCard';
 import MetricModal from './MetricModal';
 import SendReportModal from './SendReportModal';
@@ -27,26 +28,27 @@ function Dashboard() {
   const [actualPeriodDays, setActualPeriodDays] = useState(0);
   const [modalData, setModalData] = useState(null);
   const [showSendModal, setShowSendModal] = useState(false);
+  const [comparisonData, setComparisonData] = useState([]);
+  const [chartTags, setChartTags] = useState([]);
+  const [chartDisplayMode, setChartDisplayMode] = useState('both'); // 'both', 'ty', 'ly'
+
+  // Segment filter states
+  const [businessSegment, setBusinessSegment] = useState('All');
+  const [deviceType, setDeviceType] = useState('All');
+  const [pageType, setPageType] = useState('All');
+  const [pageTypes, setPageTypes] = useState(['All']);
 
   const primaryKPIs = ['visits', 'orders', 'revenue'];
   const derivedKPIs = ['cvr', 'aov', 'rpv'];
 
   const kpiConfig = {
-  visits: { label: 'Visits', shortLabel: 'Visits', format: 'number', liftFormat: 'percentage' },
-  orders: { label: 'Orders', shortLabel: 'Orders', format: 'number', liftFormat: 'percentage' },
-  revenue: { label: 'Revenue', shortLabel: 'Revenue', format: 'currency', liftFormat: 'percentage' },
-  cvr: { label: 'Conversion Rate', shortLabel: 'CVR', format: 'percentage', liftFormat: 'bps' },
-  aov: { label: 'Avg Order Value', shortLabel: 'AOV', format: 'currency', liftFormat: 'percentage' },
-  rpv: { label: 'Revenue Per Visit', shortLabel: 'RPV', format: 'currency', liftFormat: 'percentage' }
-};
-
-  const periodOptions = [
-    { value: '7', label: '7D' },
-    { value: '30', label: '30D' },
-    { value: '60', label: '60D' },
-    { value: '90', label: '90D' },
-    { value: 'all', label: 'All' }
-  ];
+    visits: { label: 'Visits', shortLabel: 'Visits', format: 'number', liftFormat: 'percentage' },
+    orders: { label: 'Orders', shortLabel: 'Orders', format: 'number', liftFormat: 'percentage' },
+    revenue: { label: 'Revenue', shortLabel: 'Revenue', format: 'currency', liftFormat: 'percentage' },
+    cvr: { label: 'Conversion Rate', shortLabel: 'CVR', format: 'percentage', liftFormat: 'bps' },
+    aov: { label: 'Avg Order Value', shortLabel: 'AOV', format: 'currency', liftFormat: 'percentage' },
+    rpv: { label: 'Revenue Per Visit', shortLabel: 'RPV', format: 'currency', liftFormat: 'percentage' }
+  };
 
   const fetchDataStatus = useCallback(async () => {
     try {
@@ -54,13 +56,23 @@ function Dashboard() {
       setHasData(response.data.has_data);
       setLastUpdated(response.data.last_updated);
       setUseCaseConfigs(response.data.configs || []);
-      
+
       if (response.data.use_cases?.length > 0) {
         setUseCases(response.data.use_cases);
         if (!selectedUseCase) {
           setSelectedUseCase(response.data.use_cases[0]);
           const config = response.data.configs?.find(c => c.use_case === response.data.use_cases[0]);
           if (config) setLaunchDate(config.launch_date);
+        }
+      }
+
+      // Fetch page types for dropdown
+      if (response.data.has_data) {
+        try {
+          const pageTypesRes = await api.get('/api/segments/page-types');
+          setPageTypes(pageTypesRes.data.page_types || ['All']);
+        } catch (e) {
+          console.error('Error fetching page types:', e);
         }
       }
     } catch (err) {
@@ -73,7 +85,13 @@ function Dashboard() {
   const fetchAnalysisData = useCallback(async () => {
     if (!hasData || !selectedUseCase) return;
     try {
-      const params = { use_case: selectedUseCase, period: selectedPeriod };
+      const params = {
+        use_case: selectedUseCase,
+        period: selectedPeriod,
+        business_segment: businessSegment !== 'All' ? businessSegment : undefined,
+        device_type: deviceType !== 'All' ? deviceType : undefined,
+        page_type: pageType !== 'All' ? pageType : undefined
+      };
       const response = await api.get('/api/kpi/analysis', { params });
       setAnalysisData(response.data.analysis || []);
       if (response.data.analysis?.length > 0) {
@@ -84,18 +102,44 @@ function Dashboard() {
     } catch (err) {
       console.error('Error fetching analysis:', err);
     }
-  }, [hasData, selectedUseCase, selectedPeriod]);
+  }, [hasData, selectedUseCase, selectedPeriod, businessSegment, deviceType, pageType]);
 
   const fetchDailyData = useCallback(async () => {
     if (!hasData || !selectedUseCase) return;
     try {
-      const params = { kpi: selectedKPI, use_case: selectedUseCase, period: selectedPeriod };
+      const params = {
+        kpi: selectedKPI,
+        use_case: selectedUseCase,
+        period: selectedPeriod,
+        business_segment: businessSegment !== 'All' ? businessSegment : undefined,
+        device_type: deviceType !== 'All' ? deviceType : undefined,
+        page_type: pageType !== 'All' ? pageType : undefined
+      };
       const response = await api.get('/api/kpi/daily', { params });
       setDailyData(response.data.data || []);
     } catch (err) {
       console.error('Error fetching daily data:', err);
     }
-  }, [hasData, selectedUseCase, selectedKPI, selectedPeriod]);
+  }, [hasData, selectedUseCase, selectedKPI, selectedPeriod, businessSegment, deviceType, pageType]);
+
+  const fetchComparisonData = useCallback(async () => {
+    if (!hasData || !selectedUseCase) return;
+    try {
+      const params = {
+        kpi: selectedKPI,
+        use_case: selectedUseCase,
+        period: selectedPeriod,
+        business_segment: businessSegment !== 'All' ? businessSegment : undefined,
+        device_type: deviceType !== 'All' ? deviceType : undefined,
+        page_type: pageType !== 'All' ? pageType : undefined
+      };
+      const response = await api.get('/api/kpi/comparison', { params });
+      setComparisonData(response.data.data || []);
+    } catch (err) {
+      console.error('Error fetching comparison data:', err);
+      setComparisonData([]);
+    }
+  }, [hasData, selectedUseCase, selectedKPI, selectedPeriod, businessSegment, deviceType, pageType]);
 
   useEffect(() => {
     fetchDataStatus();
@@ -106,13 +150,14 @@ function Dashboard() {
       fetchAnalysisData();
       fetchDailyData();
     }
-  }, [hasData, selectedUseCase, selectedPeriod, fetchAnalysisData, fetchDailyData]);
+  }, [hasData, selectedUseCase, selectedPeriod, businessSegment, deviceType, pageType, fetchAnalysisData, fetchDailyData]);
 
   useEffect(() => {
     if (hasData && selectedUseCase) {
       fetchDailyData();
+      fetchComparisonData();
     }
-  }, [selectedKPI, fetchDailyData, hasData, selectedUseCase]);
+  }, [selectedKPI, fetchDailyData, fetchComparisonData, hasData, selectedUseCase]);
 
   const getMetricData = (kpi) => {
     const metric = analysisData.find(d => d.kpi === kpi.toUpperCase());
@@ -187,6 +232,13 @@ function Dashboard() {
     setShowSendModal(false);
   };
 
+  const handleResetFilters = () => {
+    setSelectedPeriod('all');
+    setBusinessSegment('All');
+    setDeviceType('All');
+    setPageType('All');
+  };
+
   const renderMetricCard = (kpi) => {
     const data = getMetricData(kpi);
     return (
@@ -212,9 +264,6 @@ function Dashboard() {
 
   // Render the main content based on activeView
   const renderContent = () => {
-    // Debug log - remove after fixing
-    console.log('Rendering content for activeView:', activeView);
-
     // Always show DataUpload when activeView is 'upload'
     if (activeView === 'upload') {
       return <DataUpload onDataUploaded={handleDataUploaded} />;
@@ -285,8 +334,31 @@ function Dashboard() {
               <h2>{kpiConfig[selectedKPI].label}</h2>
             </div>
             <div className="chart-controls">
+              <div className="chart-display-toggle">
+                <button
+                  className={`display-toggle-btn ${chartDisplayMode === 'both' ? 'active' : ''}`}
+                  onClick={() => setChartDisplayMode('both')}
+                  title="Show both TY and LY"
+                >
+                  Both
+                </button>
+                <button
+                  className={`display-toggle-btn ${chartDisplayMode === 'ty' ? 'active' : ''}`}
+                  onClick={() => setChartDisplayMode('ty')}
+                  title="Show This Year only"
+                >
+                  TY
+                </button>
+                <button
+                  className={`display-toggle-btn ${chartDisplayMode === 'ly' ? 'active' : ''}`}
+                  onClick={() => setChartDisplayMode('ly')}
+                  title="Show Last Year only"
+                >
+                  LY
+                </button>
+              </div>
               <div className="chart-type-selector">
-                <button 
+                <button
                   className={`chart-type-btn ${chartType === 'line' ? 'active' : ''}`}
                   onClick={() => setChartType('line')}
                 >
@@ -294,7 +366,7 @@ function Dashboard() {
                     <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
                   </svg>
                 </button>
-                <button 
+                <button
                   className={`chart-type-btn ${chartType === 'area' ? 'active' : ''}`}
                   onClick={() => setChartType('area')}
                 >
@@ -303,7 +375,7 @@ function Dashboard() {
                     <path d="M3 18l6-6 4 4 8-8v10H3z" fill="currentColor" opacity="0.2"></path>
                   </svg>
                 </button>
-                <button 
+                <button
                   className={`chart-type-btn ${chartType === 'bar' ? 'active' : ''}`}
                   onClick={() => setChartType('bar')}
                 >
@@ -324,6 +396,10 @@ function Dashboard() {
               chartType={chartType}
               format={kpiConfig[selectedKPI].format}
               launchDate={launchDate}
+              comparisonData={comparisonData}
+              chartTags={chartTags}
+              onTagsChange={setChartTags}
+              displayMode={chartDisplayMode}
             />
           </div>
         </section>
@@ -342,19 +418,35 @@ function Dashboard() {
 
   return (
     <div className="dashboard">
-      <Header 
+      <Header
         activeView={activeView}
         setActiveView={setActiveView}
-        useCases={useCases}
-        selectedUseCase={selectedUseCase}
-        onUseCaseChange={handleUseCaseChange}
-        selectedPeriod={selectedPeriod}
-        onPeriodChange={handlePeriodChange}
-        periodOptions={periodOptions}
-        lastUpdated={lastUpdated}
         hasData={hasData}
         onSendReport={handleOpenSendModal}
+        selectedUseCase={selectedUseCase}
+        periodLabel={getPeriodLabel()}
+        businessSegment={businessSegment}
+        deviceType={deviceType}
+        pageType={pageType}
       />
+
+      {hasData && activeView !== 'upload' && (
+        <FilterBar
+          selectedPeriod={selectedPeriod}
+          onPeriodChange={handlePeriodChange}
+          selectedUseCase={selectedUseCase}
+          useCases={useCases}
+          onUseCaseChange={handleUseCaseChange}
+          businessSegment={businessSegment}
+          onBusinessSegmentChange={setBusinessSegment}
+          deviceType={deviceType}
+          onDeviceTypeChange={setDeviceType}
+          pageType={pageType}
+          onPageTypeChange={setPageType}
+          pageTypes={pageTypes}
+          onReset={handleResetFilters}
+        />
+      )}
 
       <main className="dashboard-content">
         {renderContent()}
@@ -370,6 +462,11 @@ function Dashboard() {
           period={selectedPeriod}
           periodLabel={getPeriodLabel()}
           onClose={handleCloseSendModal}
+          businessSegment={businessSegment}
+          deviceType={deviceType}
+          pageType={pageType}
+          chartTags={chartTags}
+          selectedKPI={selectedKPI}
         />
       )}
     </div>

@@ -2,20 +2,35 @@ import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import './Header.css';
 
-function Header({ 
-  activeView, 
-  setActiveView, 
-  useCases, 
-  selectedUseCase, 
-  onUseCaseChange,
-  selectedPeriod,
-  onPeriodChange,
-  periodOptions,
-  lastUpdated,
+function Header({
+  activeView,
+  setActiveView,
   hasData,
-  onSendReport
+  onSendReport,
+  selectedUseCase,
+  periodLabel,
+  businessSegment,
+  deviceType,
+  pageType
 }) {
   const { user, logout, isDevMode, isBetaMode, canSendReport } = useAuth();
+
+  // Build active filters display
+  const getActiveFilters = () => {
+    const filters = [];
+    if (businessSegment && businessSegment !== 'All') {
+      filters.push(businessSegment);
+    }
+    if (deviceType && deviceType !== 'All') {
+      filters.push(deviceType);
+    }
+    if (pageType && pageType !== 'All') {
+      filters.push(pageType);
+    }
+    return filters;
+  };
+
+  const activeFilters = getActiveFilters();
 
   const navItems = [
     { id: 'overview', label: 'Overview' },
@@ -59,45 +74,37 @@ function Header({
           )}
         </div>
 
-        <div className="header-right">
-          {hasData && activeView !== 'upload' && (
-            <>
-              <div className="period-selector">
-                {periodOptions.map(option => (
-                  <button
-                    key={option.value}
-                    className={`period-btn ${selectedPeriod === option.value ? 'active' : ''}`}
-                    onClick={() => onPeriodChange(option.value)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-
-              {useCases.length > 0 && (
-                <div className="use-case-selector">
-                  <select 
-                    value={selectedUseCase} 
-                    onChange={(e) => onUseCaseChange(e.target.value)}
-                  >
-                    {useCases.map(uc => (
-                      <option key={uc} value={uc}>{uc}</option>
+        {/* Context Callout - Center Section */}
+        <div className="header-center">
+          {hasData && activeView !== 'upload' && selectedUseCase && (
+            <div className="context-callout">
+              <span className="context-usecase">{selectedUseCase}</span>
+              {periodLabel && <span className="context-divider">•</span>}
+              {periodLabel && <span className="context-period">{periodLabel}</span>}
+              {activeFilters.length > 0 && (
+                <>
+                  <span className="context-divider">•</span>
+                  <div className="context-filters">
+                    {activeFilters.map((filter, index) => (
+                      <span key={index} className="context-filter-tag">{filter}</span>
                     ))}
-                  </select>
-                </div>
+                  </div>
+                </>
               )}
+            </div>
+          )}
+        </div>
 
-              {/* Only show Send Report for non-beta users */}
-              {onSendReport && canSendReport() && !isBetaMode() && (
-                <button className="send-report-btn" onClick={onSendReport}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                  </svg>
-                  <span>Send Report</span>
-                </button>
-              )}
-            </>
+        <div className="header-right">
+          {/* Only show Send Report for non-beta users */}
+          {hasData && activeView !== 'upload' && onSendReport && canSendReport() && !isBetaMode() && (
+            <button className="send-report-btn" onClick={onSendReport}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+              <span>Send Report</span>
+            </button>
           )}
 
           <div className="user-menu">

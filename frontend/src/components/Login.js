@@ -131,7 +131,7 @@ function Login() {
           <span className="team-name">The Advanced Analytics Team</span>
         </div>
 
-        <p className="version-text">version 1.0.0</p>
+        <p className="version-text">version 1.0.4 1/22/2026</p>
       </div>
     </div>
   );

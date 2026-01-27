@@ -235,6 +235,21 @@ function DataUpload({ onDataUploaded }) {
                     <td>Search Optimization</td>
                   </tr>
                   <tr>
+                    <td><code>business_segment</code></td>
+                    <td>Text</td>
+                    <td>B2B, B2C</td>
+                  </tr>
+                  <tr>
+                    <td><code>device_type</code></td>
+                    <td>Text</td>
+                    <td>MW, DTW, App</td>
+                  </tr>
+                  <tr>
+                    <td><code>page_type</code></td>
+                    <td>Text</td>
+                    <td>PLP, PDP, Homepage</td>
+                  </tr>
+                  <tr>
                     <td><code>visits</code></td>
                     <td>Number</td>
                     <td>125000</td>
@@ -309,6 +324,14 @@ function DataUpload({ onDataUploaded }) {
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
             <p>Include data for both current year and previous year to enable YoY comparison analysis. The use_case values must match exactly between both sheets.</p>
+          </div>
+
+          <div className="format-note">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <p><strong>Segment columns are optional.</strong> business_segment (B2B/B2C), device_type (MW/DTW/App), and page_type allow filtering. If omitted, data defaults to "All" for each segment.</p>
           </div>
         </div>
       </div>

@@ -2,7 +2,26 @@ import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 import './SendReportModal.css';
 
-function SendReportModal({ useCase, period, periodLabel, onClose }) {
+const kpiLabels = {
+  visits: 'Visits',
+  orders: 'Orders',
+  revenue: 'Revenue',
+  cvr: 'Conversion Rate',
+  aov: 'Avg Order Value',
+  rpv: 'Revenue Per Visit'
+};
+
+function SendReportModal({
+  useCase,
+  period,
+  periodLabel,
+  onClose,
+  businessSegment,
+  deviceType,
+  pageType,
+  chartTags = [],
+  selectedKPI = 'visits'
+}) {
   const [stakeholders, setStakeholders] = useState([]);
   const [selectedRecipients, setSelectedRecipients] = useState([]);
   const [customEmail, setCustomEmail] = useState('');
@@ -12,6 +31,7 @@ function SendReportModal({ useCase, period, periodLabel, onClose }) {
   const [error, setError] = useState(null);
   const [outlookStatus, setOutlookStatus] = useState(null);
   const [checkingOutlook, setCheckingOutlook] = useState(true);
+  const [chartDisplay, setChartDisplay] = useState('both'); // 'both', 'ty', 'ly'
 
   useEffect(() => {
     fetchStakeholders();
@@ -24,7 +44,7 @@ function SendReportModal({ useCase, period, periodLabel, onClose }) {
     };
     document.addEventListener('keydown', handleEscape);
     document.body.style.overflow = 'hidden';
-    
+
     return () => {
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = '';
@@ -63,7 +83,7 @@ function SendReportModal({ useCase, period, periodLabel, onClose }) {
   };
 
   const toggleRecipient = (email) => {
-    setSelectedRecipients(prev => 
+    setSelectedRecipients(prev =>
       prev.includes(email)
         ? prev.filter(e => e !== email)
         : [...prev, email]
@@ -96,6 +116,18 @@ function SendReportModal({ useCase, period, periodLabel, onClose }) {
     }
   };
 
+  const getReportPayload = () => ({
+    use_case: useCase,
+    period: period,
+    recipients: selectedRecipients,
+    business_segment: businessSegment,
+    device_type: deviceType,
+    page_type: pageType,
+    chart_tags: chartTags,
+    chart_display: chartDisplay,
+    selected_kpi: selectedKPI
+  });
+
   const handleSend = async () => {
     if (selectedRecipients.length === 0) {
       setError('Please add at least one recipient');
@@ -111,12 +143,8 @@ function SendReportModal({ useCase, period, periodLabel, onClose }) {
     setError(null);
 
     try {
-      const response = await api.post('/api/report/send', {
-        use_case: useCase,
-        period: period,
-        recipients: selectedRecipients
-      });
-      
+      const response = await api.post('/api/report/send', getReportPayload());
+
       if (response.data.success) {
         setSent(true);
       } else {
@@ -141,12 +169,8 @@ function SendReportModal({ useCase, period, periodLabel, onClose }) {
     setError(null);
 
     try {
-      const response = await api.post('/api/report/draft', {
-        use_case: useCase,
-        period: period,
-        recipients: selectedRecipients
-      });
-      
+      const response = await api.post('/api/report/draft', getReportPayload());
+
       if (response.data.success) {
         onClose();
       } else {
@@ -164,20 +188,32 @@ function SendReportModal({ useCase, period, periodLabel, onClose }) {
   const handlePreview = async () => {
     try {
       const token = localStorage.getItem('token');
-      const url = `/api/report/preview?use_case=${encodeURIComponent(useCase)}&period=${period}`;
-      
-      const response = await fetch(url, {
+
+      // Use POST for preview to send chart tags
+      const response = await fetch('/api/report/preview', {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          use_case: useCase,
+          period: period,
+          business_segment: businessSegment !== 'All' ? businessSegment : undefined,
+          device_type: deviceType !== 'All' ? deviceType : undefined,
+          page_type: pageType !== 'All' ? pageType : undefined,
+          chart_tags: chartTags,
+          chart_display: chartDisplay,
+          selected_kpi: selectedKPI
+        })
       });
-      
+
       if (!response.ok) {
         const data = await response.json();
         setError(data.error || 'Failed to generate preview');
         return;
       }
-      
+
       const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       window.open(blobUrl, '_blank');
@@ -285,9 +321,48 @@ function SendReportModal({ useCase, period, periodLabel, onClose }) {
             </button>
           </div>
 
+          {/* Chart Options Section */}
+          <div className="chart-options-section">
+            <label className="section-label">Chart Options</label>
+            <div className="chart-options-row">
+              <div className="chart-option-group">
+                <span className="option-label">KPI:</span>
+                <span className="option-value">{kpiLabels[selectedKPI] || selectedKPI}</span>
+              </div>
+              <div className="chart-option-group">
+                <span className="option-label">Display:</span>
+                <div className="chart-display-toggle">
+                  <button
+                    className={`toggle-option ${chartDisplay === 'both' ? 'active' : ''}`}
+                    onClick={() => setChartDisplay('both')}
+                  >
+                    Both
+                  </button>
+                  <button
+                    className={`toggle-option ${chartDisplay === 'ty' ? 'active' : ''}`}
+                    onClick={() => setChartDisplay('ty')}
+                  >
+                    TY Only
+                  </button>
+                  <button
+                    className={`toggle-option ${chartDisplay === 'ly' ? 'active' : ''}`}
+                    onClick={() => setChartDisplay('ly')}
+                  >
+                    LY Only
+                  </button>
+                </div>
+              </div>
+            </div>
+            {chartTags && chartTags.length > 0 && (
+              <div className="chart-tags-info">
+                <span className="tags-count">{chartTags.length} event{chartTags.length !== 1 ? 's' : ''} will be included</span>
+              </div>
+            )}
+          </div>
+
           <div className="recipients-section">
             <label className="section-label">Recipients</label>
-            
+
             {loading ? (
               <div className="loading-recipients">
                 <div className="loading-spinner-small"></div>
@@ -329,8 +404,8 @@ function SendReportModal({ useCase, period, periodLabel, onClose }) {
                     }}
                     onKeyDown={handleKeyDown}
                   />
-                  <button 
-                    className="add-btn" 
+                  <button
+                    className="add-btn"
                     onClick={addCustomEmail}
                     disabled={!customEmail.trim()}
                   >
@@ -374,8 +449,8 @@ function SendReportModal({ useCase, period, periodLabel, onClose }) {
 
         <div className="modal-footer">
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button 
-            className="btn-tertiary" 
+          <button
+            className="btn-tertiary"
             onClick={handleOpenDraft}
             disabled={sending || !outlookReady}
             title={outlookReady ? "Open in Outlook to review before sending" : "Outlook not ready"}
@@ -386,8 +461,8 @@ function SendReportModal({ useCase, period, periodLabel, onClose }) {
             </svg>
             Open in Outlook
           </button>
-          <button 
-            className="btn-primary" 
+          <button
+            className="btn-primary"
             onClick={handleSend}
             disabled={sending || selectedRecipients.length === 0 || !outlookReady}
           >

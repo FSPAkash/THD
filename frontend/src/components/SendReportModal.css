@@ -615,3 +615,128 @@
     transform: rotate(360deg);
   }
 }
+
+/* Chart Options Section */
+.chart-options-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(249, 99, 2, 0.04);
+  border-radius: 12px;
+  margin-bottom: 24px;
+  border: 1px solid rgba(249, 99, 2, 0.1);
+}
+
+.chart-options-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.chart-option-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.option-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.option-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chart-display-toggle {
+  display: flex;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  padding: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.toggle-option {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.toggle-option:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.toggle-option.active {
+  background: var(--orange-primary);
+  color: white;
+}
+
+.chart-tags-info {
+  padding-top: 8px;
+  border-top: 1px solid rgba(249, 99, 2, 0.1);
+}
+
+.tags-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--orange-primary);
+}
+
+/* No Stakeholders */
+.no-stakeholders {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  font-style: italic;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+}
+
+/* Sent Recipients */
+.sent-recipients {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.sent-email {
+  padding: 6px 12px;
+  background: rgba(48, 209, 88, 0.1);
+  color: #30D158;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Mobile adjustments for chart options */
+@media (max-width: 480px) {
+  .chart-options-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .chart-display-toggle {
+    width: 100%;
+  }
+
+  .toggle-option {
+    flex: 1;
+    text-align: center;
+  }
+}

@@ -12,7 +12,7 @@
   max-width: 1600px;
   margin: 0 auto;
   padding: 0 32px 0 0;
-  height: 80px; 
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -22,6 +22,15 @@
   display: flex;
   align-items: center;
   gap: 32px;
+  flex-shrink: 0;
+}
+
+.header-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
 }
 
 .header-brand {
@@ -86,13 +95,66 @@
   letter-spacing: 0.1em;
   border-radius: 12px;
   text-transform: uppercase;
+}
 
+/* Context Callout - Glass Design */
+.context-callout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 20px;
+}
+
+.context-usecase {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.context-divider {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.context-period {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.context-filters {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.context-filter-tag {
+  padding: 2px 8px;
+  background: rgba(238, 113, 37, 0.12);
+  color: var(--orange-primary);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+  white-space: nowrap;
 }
 
 .header-right {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex-shrink: 0;
 }
 
 /* Send Report Button */
@@ -214,65 +276,93 @@
 @media (max-width: 900px) {
   .header-inner {
     padding: 0 20px;
-    height: 70px; 
+    height: 70px;
   }
-  
+
   .brand-mark {
     width: 80px;
     height: 80px;
   }
-  
+
   .brand-name {
     display: none;
   }
-  
+
   .send-report-btn span {
     display: none;
   }
-  
+
   .send-report-btn {
     padding: 8px 10px;
   }
-  
+
   .period-btn {
     padding: 6px 8px;
     font-size: 11px;
   }
-  
+
   .beta-badge {
     padding: 3px 8px;
     font-size: 9px;
+  }
+
+  .header-center {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .context-callout {
+    padding: 4px 10px;
+    gap: 6px;
+  }
+
+  .context-usecase {
+    font-size: 11px;
+    max-width: 120px;
+  }
+
+  .context-period {
+    font-size: 10px;
+  }
+
+  .context-filter-tag {
+    font-size: 9px;
+    padding: 2px 6px;
   }
 }
 
 @media (max-width: 600px) {
   .header-inner {
-    height: 60px; 
+    height: 60px;
   }
-  
+
   .brand-mark {
     width: 60px;
     height: 60px;
   }
-  
+
   .header-left {
     gap: 16px;
   }
-  
+
   .nav-btn {
     padding: 6px 10px;
     font-size: 13px;
   }
-  
+
   .period-selector {
     display: none;
   }
-  
+
   .use-case-selector {
     display: none;
   }
-  
+
   .beta-badge {
+    display: none;
+  }
+
+  .header-center {
     display: none;
   }
 }
