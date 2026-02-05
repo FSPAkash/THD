@@ -1384,7 +1384,7 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
             <div className="active-tags-list">
               {pinnedEvents.length > 0 && (
                 <>
-                  <span className="tags-section-label pinned">Pinned</span>
+                  <span className="tags-section-label pinned">Suggested Events</span>
                   {pinnedEvents.map(renderPill)}
                 </>
               )}
@@ -1393,7 +1393,7 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
               )}
               {manualTags.length > 0 && (
                 <>
-                  <span className="tags-section-label manual">Manual</span>
+                  <span className="tags-section-label manual">User Added</span>
                   {manualTags.map(renderPill)}
                 </>
               )}
