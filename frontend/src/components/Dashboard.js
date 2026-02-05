@@ -18,7 +18,6 @@ function Dashboard() {
   const [useCaseConfigs, setUseCaseConfigs] = useState([]);
   const [selectedUseCase, setSelectedUseCase] = useState('');
   const [selectedKPI, setSelectedKPI] = useState('visits');
-  const [chartType, setChartType] = useState('area');
   const [selectedPeriod, setSelectedPeriod] = useState('all');
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -31,6 +30,7 @@ function Dashboard() {
   const [comparisonData, setComparisonData] = useState([]);
   const [chartTags, setChartTags] = useState([]);
   const [chartDisplayMode, setChartDisplayMode] = useState('both'); // 'both', 'ty', 'ly'
+  const [showSuggestedEvents, setShowSuggestedEvents] = useState(false);
   const [eventData, setEventData] = useState([]);
 
   // Segment filter states
@@ -339,56 +339,39 @@ function Dashboard() {
               <h2>{kpiConfig[selectedKPI].label}</h2>
             </div>
             <div className="chart-controls">
+              <button
+                className={`suggested-events-btn ${showSuggestedEvents ? 'active' : ''}`}
+                onClick={() => setShowSuggestedEvents(!showSuggestedEvents)}
+              >
+                <svg className="suggested-events-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Suggested Events
+                <span className="suggested-events-tooltip">
+                  Auto-detected events from your data that may impact KPI trends
+                </span>
+              </button>
               <div className="chart-display-toggle">
                 <button
                   className={`display-toggle-btn ${chartDisplayMode === 'both' ? 'active' : ''}`}
                   onClick={() => setChartDisplayMode('both')}
-                  title="Show both TY and LY"
                 >
                   Both
+                  <span className="display-toggle-tooltip">Show both TY and LY</span>
                 </button>
                 <button
                   className={`display-toggle-btn ${chartDisplayMode === 'ty' ? 'active' : ''}`}
                   onClick={() => setChartDisplayMode('ty')}
-                  title="Show This Year only"
                 >
                   TY
+                  <span className="display-toggle-tooltip">Show This Year only</span>
                 </button>
                 <button
                   className={`display-toggle-btn ${chartDisplayMode === 'ly' ? 'active' : ''}`}
                   onClick={() => setChartDisplayMode('ly')}
-                  title="Show Last Year only"
                 >
                   LY
-                </button>
-              </div>
-              <div className="chart-type-selector">
-                <button
-                  className={`chart-type-btn ${chartType === 'line' ? 'active' : ''}`}
-                  onClick={() => setChartType('line')}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                  </svg>
-                </button>
-                <button
-                  className={`chart-type-btn ${chartType === 'area' ? 'active' : ''}`}
-                  onClick={() => setChartType('area')}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 3v18h18"></path>
-                    <path d="M3 18l6-6 4 4 8-8v10H3z" fill="currentColor" opacity="0.2"></path>
-                  </svg>
-                </button>
-                <button
-                  className={`chart-type-btn ${chartType === 'bar' ? 'active' : ''}`}
-                  onClick={() => setChartType('bar')}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="4" y="12" width="4" height="8"></rect>
-                    <rect x="10" y="8" width="4" height="12"></rect>
-                    <rect x="16" y="4" width="4" height="16"></rect>
-                  </svg>
+                  <span className="display-toggle-tooltip">Show Last Year only</span>
                 </button>
               </div>
             </div>
@@ -398,7 +381,7 @@ function Dashboard() {
             <KPIChart
               data={dailyData}
               kpi={selectedKPI}
-              chartType={chartType}
+              chartType="area"
               format={kpiConfig[selectedKPI].format}
               launchDate={launchDate}
               comparisonData={comparisonData}
@@ -406,6 +389,7 @@ function Dashboard() {
               onTagsChange={setChartTags}
               displayMode={chartDisplayMode}
               events={eventData}
+              showSuggestedEvents={showSuggestedEvents}
             />
           </div>
         </section>

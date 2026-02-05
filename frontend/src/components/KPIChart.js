@@ -7,8 +7,6 @@ import {
 import { useAuth } from '../context/AuthContext';
 import './KPIChart.css';
 
-// Preset event tags - these are for manual tagging of events NOT in the Event Tracker
-// Events like Black Friday, Labor Day, etc. come from the Event Tracker automatically
 const PRESET_TAGS = [
   { id: 'thanksgiving', name: 'Thanksgiving', color: '#F96302' },
   { id: 'july4th', name: '4th of July', color: '#FF3B30' },
@@ -17,14 +15,11 @@ const PRESET_TAGS = [
   { id: 'outage', name: 'Outage/Issue', color: '#FF2D55' }
 ];
 
-// Chart margins matching Recharts config
 const CHART_MARGINS = { top: 20, right: 20, left: 10, bottom: 20 };
 const Y_AXIS_WIDTH = 60;
 const CHART_HEIGHT = 320;
-// Height of the actual plot area (excluding X-axis labels ~30px and Legend ~24px)
 const PLOT_AREA_HEIGHT = CHART_HEIGHT - CHART_MARGINS.top - CHART_MARGINS.bottom - 54;
 
-// Convert hex color string to rgba with given alpha
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -32,7 +27,7 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, chartTags, onTagsChange, displayMode = 'both', events = [] }) {
+function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, chartTags, onTagsChange, displayMode = 'both', events = [], showSuggestedEvents = false }) {
   const { isBetaMode } = useAuth();
   const isBeta = isBetaMode();
   const chartContainerRef = useRef(null);
@@ -44,8 +39,8 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [dragPreview, setDragPreview] = useState(null);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [expandedTagId, setExpandedTagId] = useState(null);
-  const [showSuggestedEvents, setShowSuggestedEvents] = useState(false);
+  const [editingTagId, setEditingTagId] = useState(null);
+  const [editingTagData, setEditingTagData] = useState(null);
   const [dismissedEvents, setDismissedEvents] = useState(() => {
     try {
       const stored = sessionStorage.getItem('dismissedEvents');
@@ -54,18 +49,14 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
   });
   const [editingEvent, setEditingEvent] = useState(null);
 
-  // Use comparison data if available, otherwise fall back to regular data
   const rawChartData = comparisonData && comparisonData.length > 0 ? comparisonData : data;
   const hasComparison = comparisonData && comparisonData.length > 0;
 
-  // Add displayDate field based on displayMode
-  // When showing LY only, use date_ly for X-axis; otherwise use date (TY)
   const chartData = rawChartData?.map(d => ({
     ...d,
     displayDate: displayMode === 'ly' && d.date_ly ? d.date_ly : d.date
   })) || [];
 
-  // Track container width for tag positioning
   useEffect(() => {
     const updateWidth = () => {
       if (chartContainerRef.current) {
@@ -76,19 +67,14 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
       }
     };
 
-    // Initial update with a slight delay to ensure DOM is ready
     updateWidth();
     const initialTimeout = setTimeout(updateWidth, 100);
     const secondTimeout = setTimeout(updateWidth, 300);
 
     window.addEventListener('resize', updateWidth);
 
-    // Also observe size changes
     const resizeObserver = new ResizeObserver(() => {
-      // Use requestAnimationFrame to avoid layout thrashing
-      requestAnimationFrame(() => {
-        updateWidth();
-      });
+      requestAnimationFrame(updateWidth);
     });
     if (chartContainerRef.current) {
       resizeObserver.observe(chartContainerRef.current);
@@ -102,7 +88,6 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     };
   }, []);
 
-  // Force width recalculation when chartTags change (ensures tags render properly)
   useEffect(() => {
     if (chartTags && chartTags.length > 0 && chartContainerRef.current) {
       const width = chartContainerRef.current.offsetWidth;
@@ -111,6 +96,39 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
       }
     }
   }, [chartTags, containerWidth]);
+
+  useEffect(() => {
+    if (!editingTagId && !editingEvent) return;
+
+    const handleClickOutside = (e) => {
+      const clickedElement = e.target;
+      
+      const isInsidePopover = clickedElement.closest('.tag-edit-popover');
+      const isInsideEventEdit = clickedElement.closest('.event-span-edit');
+      const isTagLabel = clickedElement.closest('.tag-label');
+      const isSpanLabel = clickedElement.closest('.event-span-label');
+      const isActivePill = clickedElement.closest('.active-tag-pill');
+      const isButton = clickedElement.closest('button');
+      const isInput = clickedElement.closest('input');
+      
+      if (isInsidePopover || isInsideEventEdit || isTagLabel || isSpanLabel || isActivePill || isButton || isInput) {
+        return;
+      }
+
+      setEditingTagId(null);
+      setEditingTagData(null);
+      setEditingEvent(null);
+    };
+
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside, true);
+    }, 50);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('click', handleClickOutside, true);
+    };
+  }, [editingTagId, editingEvent]);
 
   const formatValue = (val) => {
     if (val === null || val === undefined || isNaN(val)) return '-';
@@ -151,13 +169,17 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     });
   };
 
-  // Get container rect - always fresh to handle dynamic sizing
+  const formatShortDate = (dateStr) => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
   const getContainerRect = useCallback(() => {
     if (!chartContainerRef.current) return null;
     return chartContainerRef.current.getBoundingClientRect();
   }, []);
 
-  // Calculate date index from clientX position
   const getDateIndexFromX = useCallback((clientX) => {
     if (!chartData || chartData.length === 0) return -1;
     const rect = getContainerRect();
@@ -173,18 +195,15 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     return Math.max(0, Math.min(dataIndex, chartData.length - 1));
   }, [chartData, getContainerRect]);
 
-  // Get x position (relative to container) for a data index
   const getXPositionForIndex = useCallback((index) => {
     if (!chartData || chartData.length === 0 || index < 0) return 0;
 
-    // Use containerWidth state for reliable positioning
     const width = containerWidth || (chartContainerRef.current?.offsetWidth || 0);
     if (width === 0) return 0;
 
     const chartAreaLeft = Y_AXIS_WIDTH + CHART_MARGINS.left;
     const chartAreaWidth = width - chartAreaLeft - CHART_MARGINS.right;
 
-    // Handle single data point
     if (chartData.length === 1) {
       return chartAreaLeft + chartAreaWidth / 2;
     }
@@ -193,12 +212,20 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     return chartAreaLeft + (percentage * chartAreaWidth);
   }, [chartData, containerWidth]);
 
+  const getDateFromIndex = useCallback((index) => {
+    if (!chartData || chartData.length === 0 || index < 0 || index >= chartData.length) return null;
+    return chartData[index]?.date || null;
+  }, [chartData]);
+
+  const getIndexFromDate = useCallback((dateStr) => {
+    if (!chartData || chartData.length === 0 || !dateStr) return -1;
+    return chartData.findIndex(d => d.date === dateStr);
+  }, [chartData]);
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
-      // Find the data point to access both TY and LY dates
       const dataPoint = chartData?.find(d => d.displayDate === label);
 
-      // Format dates based on what's being shown
       const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',
@@ -206,12 +233,10 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
         year: 'numeric'
       });
 
-      // Check if there's a tag for this date
       const dateTag = chartTags?.find(t => t.date === label || t.date === dataPoint?.date);
 
       return (
         <div className="chart-tooltip">
-          {/* Show appropriate date header based on displayMode */}
           {displayMode === 'ly' ? (
             <p className="tooltip-date">{formatDate(dataPoint?.date_ly || label)}</p>
           ) : displayMode === 'both' && dataPoint?.date && dataPoint?.date_ly ? (
@@ -241,9 +266,12 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
   };
 
   const handleDragStart = (e, tag) => {
-    setDraggedTag(tag);
+    const tagForDrag = {
+      ...tag,
+      id: tag.id.startsWith('custom-') ? tag.id : tag.id
+    };
+    setDraggedTag(tagForDrag);
     e.dataTransfer.effectAllowed = 'copy';
-    // Set a transparent drag image
     const img = new Image();
     img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
     e.dataTransfer.setDragImage(img, 0, 0);
@@ -261,7 +289,6 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     const dateIndex = getDateIndexFromX(e.clientX);
     const targetDate = chartData[dateIndex]?.date;
 
-    // Calculate position relative to container for display
     const xPosition = getXPositionForIndex(dateIndex);
 
     if (targetDate && dateIndex >= 0) {
@@ -276,7 +303,6 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
   };
 
   const handleDragLeave = (e) => {
-    // Only clear preview if we're actually leaving the chart area
     const rect = chartContainerRef.current?.getBoundingClientRect();
     if (rect) {
       const { clientX, clientY } = e;
@@ -295,16 +321,38 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     const targetDate = chartData[dateIndex]?.date;
 
     if (targetDate) {
+      const uniqueId = `${draggedTag.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
       const newTag = {
         ...draggedTag,
-        id: `${draggedTag.id}-${Date.now()}`,
+        id: uniqueId,
         date: targetDate,
-        dateIndex: dateIndex
+        startDate: targetDate,
+        endDate: targetDate,
+        dateIndex: dateIndex,
+        startIndex: dateIndex,
+        endIndex: dateIndex,
+        isSpan: false,
+        isManual: true,
+        createdAt: new Date().toISOString()
       };
 
       if (onTagsChange) {
         onTagsChange([...(chartTags || []), newTag]);
       }
+
+      setTimeout(() => {
+        setEditingTagId(uniqueId);
+        setEditingTagData({
+          name: newTag.name,
+          owner: newTag.owner || '',
+          description: newTag.description || '',
+          startDate: targetDate,
+          endDate: targetDate,
+          startIndex: dateIndex,
+          endIndex: dateIndex
+        });
+      }, 50);
     }
 
     setDraggedTag(null);
@@ -313,6 +361,7 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
 
   const handleDragEnd = () => {
     setDragPreview(null);
+    setDraggedTag(null);
   };
 
   const handleAddCustomTag = () => {
@@ -334,40 +383,186 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     setShowCustomForm(false);
   };
 
-  const handleTagClick = (tagId) => {
-    setExpandedTagId(expandedTagId === tagId ? null : tagId);
-  };
+  const openTagEditor = useCallback((tagId, tag) => {
+    const tagIndex = tag.startIndex !== undefined ? tag.startIndex : 
+                     (tag.dateIndex !== undefined ? tag.dateIndex : getIndexFromDate(tag.date));
+    const endIndex = tag.endIndex !== undefined ? tag.endIndex : tagIndex;
+    
+    setEditingTagId(tagId);
+    setEditingTagData({
+      name: tag.name || '',
+      owner: tag.owner || '',
+      description: tag.description || '',
+      startDate: tag.startDate || tag.date,
+      endDate: tag.endDate || tag.date,
+      startIndex: tagIndex,
+      endIndex: endIndex
+    });
+  }, [getIndexFromDate]);
 
-  const handleRemoveTag = (tagId) => {
+  const closeTagEditor = useCallback(() => {
+    setEditingTagId(null);
+    setEditingTagData(null);
+  }, []);
+
+  const handleTagLabelClick = useCallback((e, tagId, tag) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (editingTagId === tagId) {
+      return;
+    }
+    
+    openTagEditor(tagId, tag);
+  }, [editingTagId, openTagEditor]);
+
+  const handleEditingDataChange = useCallback((field, value) => {
+    setEditingTagData(prev => prev ? { ...prev, [field]: value } : null);
+  }, []);
+
+  const handleStartDateChange = useCallback((newIndex) => {
+    if (!editingTagData || newIndex < 0 || newIndex >= chartData.length) return;
+    
+    const newStartDate = getDateFromIndex(newIndex);
+    if (!newStartDate) return;
+
+    let endIndex = editingTagData.endIndex;
+    if (newIndex > endIndex) {
+      endIndex = newIndex;
+    }
+
+    setEditingTagData(prev => prev ? {
+      ...prev,
+      startDate: newStartDate,
+      startIndex: newIndex,
+      endDate: getDateFromIndex(endIndex) || prev.endDate,
+      endIndex: endIndex
+    } : null);
+  }, [editingTagData, chartData.length, getDateFromIndex]);
+
+  const handleEndDateChange = useCallback((newIndex) => {
+    if (!editingTagData || newIndex < 0 || newIndex >= chartData.length) return;
+    
+    const newEndDate = getDateFromIndex(newIndex);
+    if (!newEndDate) return;
+
+    let startIndex = editingTagData.startIndex;
+    if (newIndex < startIndex) {
+      startIndex = newIndex;
+    }
+
+    setEditingTagData(prev => prev ? {
+      ...prev,
+      endDate: newEndDate,
+      endIndex: newIndex,
+      startDate: getDateFromIndex(startIndex) || prev.startDate,
+      startIndex: startIndex
+    } : null);
+  }, [editingTagData, chartData.length, getDateFromIndex]);
+
+  const handleSaveTagEdit = useCallback(() => {
+    if (!editingTagId || !editingTagData) return;
+
+    const isSpan = editingTagData.startIndex !== editingTagData.endIndex;
+
+    const updatedTags = (chartTags || []).map(tag => {
+      if (tag.id === editingTagId) {
+        return {
+          ...tag,
+          name: editingTagData.name,
+          owner: editingTagData.owner,
+          description: editingTagData.description,
+          startDate: editingTagData.startDate,
+          endDate: editingTagData.endDate,
+          date: editingTagData.startDate,
+          startIndex: editingTagData.startIndex,
+          endIndex: editingTagData.endIndex,
+          dateIndex: editingTagData.startIndex,
+          isSpan: isSpan,
+          adjustedStart: new Date(editingTagData.startDate + 'T00:00:00').toISOString(),
+          adjustedEnd: new Date(editingTagData.endDate + 'T00:00:00').toISOString(),
+          yearLabel: displayMode === 'ly' ? 'LY' : 'TY',
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return tag;
+    });
+
+    if (onTagsChange) {
+      onTagsChange(updatedTags);
+    }
+
+    closeTagEditor();
+  }, [editingTagId, editingTagData, chartTags, displayMode, onTagsChange, closeTagEditor]);
+
+  const handleConvertToSpan = useCallback((e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!editingTagData) return;
+
+    const currentIndex = editingTagData.startIndex;
+    const defaultSpanDays = 3;
+    const newEndIndex = Math.min(currentIndex + defaultSpanDays, chartData.length - 1);
+    const newEndDate = getDateFromIndex(newEndIndex);
+
+    setEditingTagData(prev => prev ? {
+      ...prev,
+      endDate: newEndDate || prev.endDate,
+      endIndex: newEndIndex
+    } : null);
+  }, [editingTagData, chartData.length, getDateFromIndex]);
+
+  const handleConvertToPoint = useCallback((e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!editingTagData) return;
+
+    const startDate = editingTagData.startDate;
+    const startIndex = editingTagData.startIndex;
+
+    setEditingTagData(prev => prev ? {
+      ...prev,
+      endDate: startDate,
+      endIndex: startIndex
+    } : null);
+  }, [editingTagData]);
+
+  const handleRemoveTag = useCallback((tagId, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     if (onTagsChange) {
       onTagsChange((chartTags || []).filter(t => t.id !== tagId));
     }
-  };
+    if (editingTagId === tagId) {
+      closeTagEditor();
+    }
+  }, [chartTags, editingTagId, onTagsChange, closeTagEditor]);
 
-  // Persist dismissedEvents to sessionStorage whenever they change
   useEffect(() => {
     try {
       sessionStorage.setItem('dismissedEvents', JSON.stringify(dismissedEvents));
-    } catch { /* ignore */ }
+    } catch { }
   }, [dismissedEvents]);
 
-  // Dismiss a suggested event (session-scoped)
   const handleDismissEvent = (eventId) => {
     setDismissedEvents(prev => [...prev, eventId]);
   };
 
-  // Reset all dismissed events
   const handleResetDismissed = () => {
     setDismissedEvents([]);
   };
 
-  // Get list of pinned event IDs from chartTags
   const pinnedEventIds = (chartTags || [])
     .filter(tag => tag.sourceEventId)
     .map(tag => tag.sourceEventId);
 
-  // Year-aware event filtering: returns events adjusted to the visible chart date range
-  // Excludes dismissed and pinned events
   const getFilteredEvents = useCallback(() => {
     if (!events || events.length === 0 || !chartData || chartData.length === 0) return [];
 
@@ -378,17 +573,15 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     const chartStart = new Date(chartStartDate + 'T00:00:00');
     const chartEnd = new Date(chartEndDate + 'T00:00:00');
 
-    // Determine year label suffix based on displayMode
     const yearLabel = displayMode === 'ly' ? 'LY' : 'TY';
 
     return events
       .filter(ev => !dismissedEvents.includes(ev.id))
-      .filter(ev => !pinnedEventIds.includes(ev.id)) // Exclude pinned events
+      .filter(ev => !pinnedEventIds.includes(ev.id))
       .map(ev => {
         let evStart = new Date(ev.startDate + 'T00:00:00');
         let evEnd = new Date(ev.endDate + 'T00:00:00');
 
-        // When showing LY only, shift event dates back 365 days
         if (displayMode === 'ly') {
           evStart = new Date(evStart.getTime() - 365 * 24 * 60 * 60 * 1000);
           evEnd = new Date(evEnd.getTime() - 365 * 24 * 60 * 60 * 1000);
@@ -396,13 +589,9 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
 
         return { ...ev, adjustedStart: evStart, adjustedEnd: evEnd, yearLabel };
       })
-      .filter(ev => {
-        // Keep only events that overlap with the visible chart range
-        return ev.adjustedStart <= chartEnd && ev.adjustedEnd >= chartStart;
-      });
+      .filter(ev => ev.adjustedStart <= chartEnd && ev.adjustedEnd >= chartStart);
   }, [events, chartData, displayMode, dismissedEvents, pinnedEventIds]);
 
-  // Convert a date to the nearest data index in chartData
   const getIndexForDate = useCallback((targetDate) => {
     if (!chartData || chartData.length === 0) return -1;
     let bestIdx = 0;
@@ -418,43 +607,210 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     return bestIdx;
   }, [chartData]);
 
-  // Helper to render a single event span (used for both suggestions and pinned)
-  const renderSingleSpan = (ev, isPinned = false) => {
+  const renderCompactEditPopover = (tag, isInSpanLayer = false) => {
+    if (editingTagId !== tag.id || !editingTagData) return null;
+
+    const isSpan = editingTagData.startIndex !== editingTagData.endIndex;
+    const dayCount = editingTagData.endIndex - editingTagData.startIndex + 1;
+
+    const handlePopoverClick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handlePopoverMouseMove = (e) => {
+      e.stopPropagation();
+    };
+
+    return (
+      <div
+        className={`tag-edit-popover compact ${isInSpanLayer ? 'in-span-layer' : ''}`}
+        style={{ borderColor: tag.color }}
+        onClick={handlePopoverClick}
+        onMouseDown={handlePopoverClick}
+        onMouseMove={handlePopoverMouseMove}
+        onMouseEnter={handlePopoverClick}
+      >
+        <div className="edit-popover-header">
+          <input
+            type="text"
+            className="edit-name-input"
+            value={editingTagData.name}
+            onChange={(e) => handleEditingDataChange('name', e.target.value)}
+            placeholder="Event name"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          />
+          <button 
+            className="edit-popover-close" 
+            onClick={(e) => { 
+              e.preventDefault();
+              e.stopPropagation(); 
+              closeTagEditor(); 
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div className="edit-row">
+          <input
+            type="text"
+            className="edit-field-small"
+            value={editingTagData.owner}
+            onChange={(e) => handleEditingDataChange('owner', e.target.value)}
+            placeholder="Owner"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          />
+          <input
+            type="text"
+            className="edit-field-small"
+            value={editingTagData.description}
+            onChange={(e) => handleEditingDataChange('description', e.target.value)}
+            placeholder="Note"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          />
+        </div>
+
+        <div className="edit-date-row" onClick={handlePopoverClick} onMouseDown={handlePopoverClick}>
+          <div className="date-control">
+            <button 
+              className="date-btn"
+              onClick={(e) => { 
+                e.preventDefault();
+                e.stopPropagation(); 
+                handleStartDateChange(editingTagData.startIndex - 1); 
+              }}
+              disabled={editingTagData.startIndex <= 0}
+            >-</button>
+            <span className="date-value">{formatShortDate(editingTagData.startDate)}</span>
+            <button 
+              className="date-btn"
+              onClick={(e) => { 
+                e.preventDefault();
+                e.stopPropagation(); 
+                handleStartDateChange(editingTagData.startIndex + 1); 
+              }}
+              disabled={editingTagData.startIndex >= chartData.length - 1}
+            >+</button>
+          </div>
+          
+          <span className="date-separator">to</span>
+          
+          <div className="date-control">
+            <button 
+              className="date-btn"
+              onClick={(e) => { 
+                e.preventDefault();
+                e.stopPropagation(); 
+                handleEndDateChange(editingTagData.endIndex - 1); 
+              }}
+              disabled={editingTagData.endIndex <= 0}
+            >-</button>
+            <span className="date-value">{formatShortDate(editingTagData.endDate)}</span>
+            <button 
+              className="date-btn"
+              onClick={(e) => { 
+                e.preventDefault();
+                e.stopPropagation(); 
+                handleEndDateChange(editingTagData.endIndex + 1); 
+              }}
+              disabled={editingTagData.endIndex >= chartData.length - 1}
+            >+</button>
+          </div>
+          
+          <span className="day-count">{dayCount}d</span>
+        </div>
+
+        <div className="edit-actions-row" onClick={handlePopoverClick} onMouseDown={handlePopoverClick}>
+          {!isSpan ? (
+            <button 
+              className="action-btn secondary"
+              onClick={(e) => handleConvertToSpan(e)}
+            >
+              Make Span
+            </button>
+          ) : (
+            <button 
+              className="action-btn secondary"
+              onClick={(e) => handleConvertToPoint(e)}
+            >
+              Single Day
+            </button>
+          )}
+          <button 
+            className="action-btn danger"
+            onClick={(e) => handleRemoveTag(tag.id, e)}
+          >
+            Delete
+          </button>
+          <button 
+            className="action-btn primary"
+            onClick={(e) => { 
+              e.preventDefault();
+              e.stopPropagation(); 
+              handleSaveTagEdit(); 
+            }}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSingleSpan = (ev, isPinned = false, isManualSpan = false) => {
     const currentWidth = containerWidth || (chartContainerRef.current?.offsetWidth || 0);
     if (currentWidth === 0) return null;
 
     const chartAreaLeft = Y_AXIS_WIDTH + CHART_MARGINS.left;
     const chartAreaWidth = currentWidth - chartAreaLeft - CHART_MARGINS.right;
 
-    // For pinned spans, adjustedStart/End are stored as ISO strings
-    const evStart = isPinned ? new Date(ev.adjustedStart) : ev.adjustedStart;
-    const evEnd = isPinned ? new Date(ev.adjustedEnd) : ev.adjustedEnd;
+    let evStart, evEnd;
+    
+    if (isManualSpan) {
+      evStart = new Date(ev.startDate + 'T00:00:00');
+      evEnd = new Date(ev.endDate + 'T00:00:00');
+    } else {
+      evStart = isPinned ? new Date(ev.adjustedStart) : ev.adjustedStart;
+      evEnd = isPinned ? new Date(ev.adjustedEnd) : ev.adjustedEnd;
+    }
 
-    const startIdx = getIndexForDate(evStart);
-    const endIdx = getIndexForDate(evEnd);
+    const startIdx = isManualSpan ? ev.startIndex : getIndexForDate(evStart);
+    const endIdx = isManualSpan ? ev.endIndex : getIndexForDate(evEnd);
 
-    // Clamp indices to chart bounds
     const clampedStart = Math.max(0, startIdx);
     const clampedEnd = Math.min(chartData.length - 1, endIdx);
 
-    // Calculate pixel positions
     const startPct = chartData.length === 1 ? 0.5 : clampedStart / (chartData.length - 1);
     const endPct = chartData.length === 1 ? 0.5 : clampedEnd / (chartData.length - 1);
 
     const leftPx = chartAreaLeft + startPct * chartAreaWidth;
     const rightPx = chartAreaLeft + endPct * chartAreaWidth;
-    const widthPx = Math.max(rightPx - leftPx, 4); // minimum 4px width
-
+    const widthPx = Math.max(rightPx - leftPx, 4);
     const centerPx = leftPx + widthPx / 2;
 
-    // Solid fill with edge borders - cleaner than gradient
     const fillColor = hexToRgba(ev.color, 0.12);
     const borderColor = hexToRgba(ev.color, 0.5);
+
+    const isBeingEdited = editingTagId === ev.id;
+    const spanLabel = ev.name || ev.label;
+    const yearLabel = ev.yearLabel || (displayMode === 'ly' ? 'LY' : 'TY');
+
+    const handleSpanClick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
 
     return (
       <div
         key={ev.id}
-        className={`event-span ${isPinned ? 'pinned' : ''}`}
+        className={`event-span ${isPinned || isManualSpan ? 'pinned' : ''} ${isBeingEdited ? 'editing' : ''}`}
         style={{
           left: `${leftPx}px`,
           width: `${widthPx}px`,
@@ -463,40 +819,65 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
           borderRight: `2px solid ${borderColor}`,
         }}
       >
-        {/* Pill label at center */}
         <div
           className="event-span-label"
           style={{ left: `${centerPx - leftPx}px`, background: ev.color }}
-          onClick={() => !isPinned && setEditingEvent(editingEvent?.id === ev.id ? null : ev)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isManualSpan) {
+              if (editingTagId !== ev.id) {
+                openTagEditor(ev.id, ev);
+              }
+            } else if (!isPinned) {
+              setEditingEvent(editingEvent?.id === ev.id ? null : ev);
+            }
+          }}
+          onMouseDown={handleSpanClick}
         >
           <span className="event-span-label-text">
-            {ev.name || ev.label} ({ev.yearLabel})
+            {spanLabel} ({yearLabel})
           </span>
-          {isPinned ? (
-            <button
-              className="event-span-dismiss"
-              onClick={(e) => { e.stopPropagation(); handleRemoveTag(ev.id); }}
-              title="Remove"
-            >
-              x
-            </button>
-          ) : (
-            <button
-              className="event-span-dismiss"
-              onClick={(e) => { e.stopPropagation(); handleDismissEvent(ev.id); }}
-              title="Dismiss"
-            >
-              x
-            </button>
-          )}
+          <button
+            className="event-span-dismiss"
+            onClick={(e) => { 
+              e.preventDefault();
+              e.stopPropagation(); 
+              if (isPinned || isManualSpan) {
+                handleRemoveTag(ev.id, e);
+              } else {
+                handleDismissEvent(ev.id);
+              }
+            }}
+            title={isPinned || isManualSpan ? "Remove" : "Dismiss"}
+          >
+            x
+          </button>
         </div>
 
-        {/* Edit popover - only for suggestions, not pinned */}
-        {!isPinned && editingEvent?.id === ev.id && (
-          <div className="event-span-edit" style={{ left: `${centerPx - leftPx}px` }}>
+        {isManualSpan && isBeingEdited && renderCompactEditPopover(ev, true)}
+
+        {!isPinned && !isManualSpan && editingEvent?.id === ev.id && (
+          <div
+            className="event-span-edit"
+            style={{ left: `${centerPx - leftPx}px` }}
+            onClick={handleSpanClick}
+            onMouseDown={handleSpanClick}
+            onMouseMove={handleSpanClick}
+            onMouseEnter={handleSpanClick}
+          >
             <div className="event-span-edit-header">
               <strong>{ev.label}</strong>
-              <button className="event-span-edit-close" onClick={() => setEditingEvent(null)}>x</button>
+              <button 
+                className="event-span-edit-close" 
+                onClick={(e) => { 
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setEditingEvent(null); 
+                }}
+              >
+                x
+              </button>
             </div>
             <p className="event-span-edit-dates">
               {new Date(ev.adjustedStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -508,16 +889,15 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
             </p>
             <button
               className="event-span-pin-btn"
-              onClick={() => {
-                // Pin as a permanent span (not point marker) with full event data
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 if (onTagsChange) {
                   onTagsChange([...(chartTags || []), {
                     id: `pinned-${ev.id}-${Date.now()}`,
                     name: ev.label,
                     color: ev.color,
-                    // Store the original event ID to track which event was pinned
                     sourceEventId: ev.id,
-                    // Store span data for rendering as a span
                     isSpan: true,
                     startDate: ev.startDate,
                     endDate: ev.endDate,
@@ -539,7 +919,6 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     );
   };
 
-  // Get pinned span tags that overlap with current chart range
   const getPinnedSpans = useCallback(() => {
     if (!chartTags || !chartData || chartData.length === 0) return [];
 
@@ -551,7 +930,7 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     const chartEnd = new Date(chartEndDate + 'T00:00:00');
 
     return chartTags
-      .filter(tag => tag.isSpan)
+      .filter(tag => tag.isSpan && !tag.isManual)
       .filter(tag => {
         const tagStart = new Date(tag.adjustedStart);
         const tagEnd = new Date(tag.adjustedEnd);
@@ -559,26 +938,26 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
       });
   }, [chartTags, chartData]);
 
-  // Render gradient event spans behind the chart (both suggestions and pinned)
+  const getManualSpans = useCallback(() => {
+    if (!chartTags || !chartData || chartData.length === 0) return [];
+    return chartTags.filter(tag => tag.isSpan && tag.isManual);
+  }, [chartTags, chartData]);
+
   const renderEventSpans = () => {
     const currentWidth = containerWidth || (chartContainerRef.current?.offsetWidth || 0);
     if (currentWidth === 0) return null;
 
-    // Get pinned spans (always show)
     const pinnedSpans = getPinnedSpans();
-
-    // Get suggested events (only when toggle is on)
+    const manualSpans = getManualSpans();
     const suggestedEvents = showSuggestedEvents ? getFilteredEvents() : [];
 
-    // If nothing to render, return null
-    if (pinnedSpans.length === 0 && suggestedEvents.length === 0) return null;
+    if (pinnedSpans.length === 0 && suggestedEvents.length === 0 && manualSpans.length === 0) return null;
 
     return (
       <>
-        {/* Render pinned spans first (always visible) */}
-        {pinnedSpans.map(span => renderSingleSpan(span, true))}
-        {/* Render suggested events (when toggle is on) */}
-        {suggestedEvents.map(ev => renderSingleSpan(ev, false))}
+        {pinnedSpans.map(span => renderSingleSpan(span, true, false))}
+        {manualSpans.map(span => renderSingleSpan(span, false, true))}
+        {suggestedEvents.map(ev => renderSingleSpan(ev, false, false))}
       </>
     );
   };
@@ -594,43 +973,34 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     fontWeight: 500
   };
 
-  // Calculate tick interval for evenly spaced X-axis labels
-  // Target ~6-8 ticks for readability, ensuring even spacing
   const calculateTickInterval = () => {
     if (!chartData || chartData.length <= 1) return 0;
     const dataPoints = chartData.length;
-    const targetTicks = 7; // Aim for 7 evenly spaced ticks
+    const targetTicks = 7;
     const interval = Math.max(0, Math.floor((dataPoints - 1) / (targetTicks - 1)) - 1);
     return interval;
   };
 
   const tickInterval = calculateTickInterval();
 
-  // Get the correct data keys based on comparison mode
   const tyDataKey = hasComparison ? `${kpi}_ty` : kpi;
   const lyDataKey = hasComparison ? `${kpi}_ly` : null;
 
-  // Determine which lines to show based on displayMode
   const showTY = displayMode === 'both' || displayMode === 'ty';
   const showLY = displayMode === 'both' || displayMode === 'ly';
 
-  // Render placed tags as overlay elements (point tags only, not span tags)
   const renderPlacedTags = () => {
     if (!chartTags || chartTags.length === 0 || !chartData || chartData.length === 0) return null;
 
-    // Filter out span tags - they're rendered in renderEventSpans
     const pointTags = chartTags.filter(t => !t.isSpan);
     if (pointTags.length === 0) return null;
 
-    // Get current width - fallback to ref if state is 0
     const currentWidth = containerWidth || (chartContainerRef.current?.offsetWidth || 0);
     if (currentWidth === 0) return null;
 
-    // Pole extends from tag area into chart
     const poleHeight = CHART_HEIGHT - CHART_MARGINS.bottom - 40;
 
     return pointTags.map((tag) => {
-      // Find the date index - use stored index first, then lookup by date
       let dateIndex = tag.dateIndex;
       if (dateIndex === undefined || dateIndex < 0 || dateIndex >= chartData.length) {
         dateIndex = chartData.findIndex(d => d.date === tag.date);
@@ -639,56 +1009,34 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
       if (dateIndex === -1 || dateIndex >= chartData.length) return null;
 
       const xPos = getXPositionForIndex(dateIndex);
-      if (xPos === 0 && dateIndex !== 0) return null; // Position calculation failed
+      if (xPos === 0 && dateIndex !== 0) return null;
 
-      const isExpanded = expandedTagId === tag.id;
-      const hasDetails = tag.owner || tag.description;
+      const isEditing = editingTagId === tag.id;
 
       return (
         <div
           key={tag.id}
-          className={`placed-tag-container ${isExpanded ? 'expanded' : ''}`}
+          className={`placed-tag-container ${isEditing ? 'editing' : ''}`}
           style={{ left: `${xPos}px` }}
         >
-          {/* Tag label - compact pill design, clickable if has details */}
           <div
-            className={`tag-label ${hasDetails ? 'clickable' : ''}`}
+            className="tag-label clickable"
             style={{ background: tag.color }}
-            onClick={hasDetails ? () => handleTagClick(tag.id) : undefined}
+            onClick={(e) => handleTagLabelClick(e, tag.id, tag)}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
           >
             <span className="tag-label-text">{tag.name}</span>
-            {hasDetails && (
-              <span className="tag-expand-icon">
-                {isExpanded ? '−' : '+'}
-              </span>
-            )}
             <button
               className="tag-label-remove"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRemoveTag(tag.id);
-              }}
+              onClick={(e) => handleRemoveTag(tag.id, e)}
               title="Remove tag"
             >
-              ×
+              x
             </button>
           </div>
 
-          {/* Expanded details panel */}
-          {isExpanded && hasDetails && (
-            <div className="tag-details" style={{ borderColor: tag.color }}>
-              {tag.description && (
-                <p className="tag-description">{tag.description}</p>
-              )}
-              {tag.owner && (
-                <p className="tag-owner-info">
-                  <span className="tag-owner-label">Owner:</span> {tag.owner}
-                </p>
-              )}
-            </div>
-          )}
+          {isEditing && renderCompactEditPopover(tag, false)}
 
-          {/* Vertical pole extending down */}
           <div
             className="tag-pole"
             style={{
@@ -696,7 +1044,6 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
               height: poleHeight
             }}
           ></div>
-          {/* Date at bottom */}
           <div className="tag-date" style={{ color: tag.color }}>
             {formatAxisDate(tag.date)}
           </div>
@@ -705,7 +1052,6 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     });
   };
 
-  // Render drag preview
   const renderDragPreview = () => {
     if (!dragPreview || dragPreview.x === 0) return null;
 
@@ -716,11 +1062,9 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
         className="drag-preview-container"
         style={{ left: `${dragPreview.x}px` }}
       >
-        {/* Preview tag label */}
         <div className="tag-label preview" style={{ background: dragPreview.tag.color }}>
           <span className="tag-label-text">{dragPreview.tag.name}</span>
         </div>
-        {/* Preview pole - dashed */}
         <div
           className="tag-pole preview"
           style={{
@@ -728,7 +1072,6 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
             height: poleHeight
           }}
         ></div>
-        {/* Date display */}
         <div className="tag-date preview" style={{ color: dragPreview.tag.color }}>
           {dragPreview.formattedDate}
         </div>
@@ -952,33 +1295,42 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     );
   }
 
+  const isEditingActive = editingTagId || editingEvent;
+
   return (
     <div className="kpi-chart-wrapper">
       <div
-        className={`kpi-chart ${draggedTag ? 'drop-active' : ''}`}
+        className={`kpi-chart ${draggedTag ? 'drop-active' : ''} ${isEditingActive ? 'editing-active' : ''}`}
         ref={chartContainerRef}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* Tag area - space above chart for tag labels */}
         <div className="tag-area">
           {renderPlacedTags()}
           {dragPreview && renderDragPreview()}
         </div>
 
-        {/* Suggested event spans - rendered behind the chart */}
-        <div className="event-spans-layer" style={{ height: `${PLOT_AREA_HEIGHT}px` }}>
+        <div
+          className={`event-spans-layer ${isEditingActive ? 'has-editing' : ''}`}
+          style={{ height: `${PLOT_AREA_HEIGHT}px` }}
+        >
           {renderEventSpans()}
         </div>
 
-        {/* Chart */}
+        {isEditingActive && (
+          <div
+            className="chart-interaction-blocker"
+            onClick={(e) => { e.stopPropagation(); }}
+            onMouseMove={(e) => { e.stopPropagation(); }}
+          />
+        )}
+
         <ResponsiveContainer width="100%" height={320}>
           {renderChart()}
         </ResponsiveContainer>
       </div>
 
-      {/* Tag Panel Toggle */}
       <div className="chart-tag-controls">
         <button
           className={`tag-panel-toggle ${showTagPanel ? 'active' : ''}`}
@@ -988,47 +1340,72 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
             <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
             <line x1="7" y1="7" x2="7.01" y2="7"></line>
           </svg>
-          <span>Add Info Tag</span>
+          <span>Add Tag</span>
         </button>
 
-        {/* Suggested Events Toggle */}
-        <button
-          className={`suggested-events-toggle ${showSuggestedEvents ? 'active' : ''}`}
-          onClick={() => setShowSuggestedEvents(!showSuggestedEvents)}
-        >
-          <span className={`suggested-events-dot ${showSuggestedEvents ? 'on' : 'off'}`}></span>
-          <span>Suggested Events</span>
-        </button>
+        {chartTags && chartTags.length > 0 && (() => {
+          const pinnedEvents = chartTags.filter(tag => tag.source === 'suggested');
+          const manualTags = chartTags.filter(tag => tag.source !== 'suggested');
 
-        {/* Active Tags Display - only show point tags, not span tags */}
-        {chartTags && chartTags.filter(t => !t.isSpan).length > 0 && (
-          <div className="active-tags">
-            {chartTags.filter(t => !t.isSpan).map(tag => (
-              <span
-                key={tag.id}
-                className="active-tag"
-                style={{ borderColor: tag.color, color: tag.color }}
+          const renderPill = (tag) => (
+            <span
+              key={tag.id}
+              className={`active-tag-pill ${editingTagId === tag.id ? 'editing' : ''}`}
+              style={{ '--tag-color': tag.color }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openTagEditor(tag.id, tag);
+              }}
+            >
+              <span className="pill-dot" style={{ background: tag.color }}></span>
+              <span className="pill-name">{tag.name}</span>
+              {tag.isSpan && (
+                <span className="pill-range">
+                  {formatShortDate(tag.startDate)}-{formatShortDate(tag.endDate)}
+                </span>
+              )}
+              {!tag.isSpan && (
+                <span className="pill-date">{formatShortDate(tag.date)}</span>
+              )}
+              <button
+                className="pill-remove"
+                onClick={(e) => handleRemoveTag(tag.id, e)}
               >
-                <span className="tag-marker" style={{ background: tag.color }}></span>
-                {tag.name}
-                <span className="tag-date">{formatAxisDate(tag.date)}</span>
-                <button onClick={() => handleRemoveTag(tag.id)} className="tag-remove">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </span>
+          );
+
+          return (
+            <div className="active-tags-list">
+              {pinnedEvents.length > 0 && (
+                <>
+                  <span className="tags-section-label pinned">Pinned</span>
+                  {pinnedEvents.map(renderPill)}
+                </>
+              )}
+              {pinnedEvents.length > 0 && manualTags.length > 0 && (
+                <span className="tags-separator"></span>
+              )}
+              {manualTags.length > 0 && (
+                <>
+                  <span className="tags-section-label manual">Manual</span>
+                  {manualTags.map(renderPill)}
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
-      {/* Tag Panel */}
       {showTagPanel && (
         <div className="tag-panel">
           <div className="tag-panel-header">
-            <h4>Drag tags onto the chart</h4>
+            <h4>Add Event Tag</h4>
             <button className="tag-panel-close" onClick={() => setShowTagPanel(false)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -1037,24 +1414,18 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
             </button>
           </div>
 
+          <p className="tag-panel-hint">
+            Drag a tag onto the chart. Click to edit dates and convert to a span.
+          </p>
+
           {dismissedEvents.length > 0 && (
             <button className="reset-dismissed-btn" onClick={handleResetDismissed}>
-              Reset {dismissedEvents.length} dismissed event{dismissedEvents.length !== 1 ? 's' : ''}
+              Restore {dismissedEvents.length} dismissed
             </button>
           )}
 
           <div className="preset-tags">
-            {PRESET_TAGS
-              // Filter out preset tags that match pinned events by name
-              .filter(tag => {
-                const tagNameLower = tag.name.toLowerCase();
-                // Check if this tag name matches any pinned event
-                const isPinnedAlready = (chartTags || []).some(ct =>
-                  ct.isSpan && ct.name.toLowerCase() === tagNameLower
-                );
-                return !isPinnedAlready;
-              })
-              .map(tag => (
+            {PRESET_TAGS.map(tag => (
               <div
                 key={tag.id}
                 className="draggable-tag"
@@ -1079,30 +1450,32 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                Create Custom Tag
+                Custom Tag
               </button>
             ) : (
               <div className="custom-tag-form">
+                <div className="custom-form-row">
+                  <input
+                    type="text"
+                    placeholder="Tag name"
+                    value={customTagName}
+                    onChange={(e) => setCustomTagName(e.target.value)}
+                    className="custom-tag-input"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Owner"
+                    value={customTagOwner}
+                    onChange={(e) => setCustomTagOwner(e.target.value)}
+                    className="custom-tag-input"
+                  />
+                </div>
                 <input
                   type="text"
-                  placeholder="Tag name"
-                  value={customTagName}
-                  onChange={(e) => setCustomTagName(e.target.value)}
-                  className="custom-tag-input"
-                />
-                <input
-                  type="text"
-                  placeholder="Your name (owner)"
-                  value={customTagOwner}
-                  onChange={(e) => setCustomTagOwner(e.target.value)}
-                  className="custom-tag-input"
-                />
-                <textarea
-                  placeholder="Short description (optional)"
+                  placeholder="Description (optional)"
                   value={customTagDescription}
                   onChange={(e) => setCustomTagDescription(e.target.value)}
-                  className="custom-tag-textarea"
-                  rows={2}
+                  className="custom-tag-input full"
                 />
                 <div className="custom-tag-actions">
                   <button
@@ -1121,7 +1494,7 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
                     onClick={handleAddCustomTag}
                     disabled={!customTagName.trim() || !customTagOwner.trim()}
                   >
-                    Create & Drag
+                    Create
                   </button>
                 </div>
               </div>
@@ -1130,7 +1503,7 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
 
           {draggedTag && draggedTag.isCustom && (
             <div className="drag-instruction">
-              <p>Now drag your custom tag "{draggedTag.name}" onto the chart</p>
+              <p>Drag "{draggedTag.name}" onto the chart:</p>
               <div
                 className="draggable-tag custom"
                 draggable
@@ -1139,7 +1512,6 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
               >
                 <span className="tag-marker" style={{ background: draggedTag.color }}></span>
                 {draggedTag.name}
-                <span className="tag-owner">by {draggedTag.owner}</span>
               </div>
             </div>
           )}
