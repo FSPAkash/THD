@@ -32,6 +32,7 @@ function Dashboard() {
   const [chartDisplayMode, setChartDisplayMode] = useState('both'); // 'both', 'ty', 'ly'
   const [showSuggestedEvents, setShowSuggestedEvents] = useState(false);
   const [eventData, setEventData] = useState([]);
+  const [showTagsResetConfirm, setShowTagsResetConfirm] = useState(false);
 
   // Segment filter states
   const [businessSegment, setBusinessSegment] = useState('All');
@@ -374,6 +375,44 @@ function Dashboard() {
                   <span className="display-toggle-tooltip">Show Last Year only</span>
                 </button>
               </div>
+              {chartTags && chartTags.length > 0 && (
+                <div className="chart-tags-reset-wrapper">
+                  <button
+                    className="chart-tags-reset-btn"
+                    onClick={() => setShowTagsResetConfirm(true)}
+                    title="Reset all event tags"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                      <path d="M3 3v5h5" />
+                    </svg>
+                    <span className="chart-tags-reset-tooltip">Reset all event tags</span>
+                  </button>
+                  {showTagsResetConfirm && (
+                    <div className="chart-tags-reset-confirm">
+                      <p>Clear all event tags?</p>
+                      <div className="confirm-buttons">
+                        <button
+                          className="confirm-yes"
+                          onClick={() => {
+                            setChartTags([]);
+                            setShowSuggestedEvents(false);
+                            setShowTagsResetConfirm(false);
+                          }}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          className="confirm-no"
+                          onClick={() => setShowTagsResetConfirm(false)}
+                        >
+                          No
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           
