@@ -1012,6 +1012,7 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
       if (xPos === 0 && dateIndex !== 0) return null;
 
       const isEditing = editingTagId === tag.id;
+      const yearLabel = tag.yearLabel || (displayMode === 'ly' ? 'LY' : 'TY');
 
       return (
         <div
@@ -1025,7 +1026,7 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
             onClick={(e) => handleTagLabelClick(e, tag.id, tag)}
             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
           >
-            <span className="tag-label-text">{tag.name}</span>
+            <span className="tag-label-text">{tag.name} ({yearLabel})</span>
             <button
               className="tag-label-remove"
               onClick={(e) => handleRemoveTag(tag.id, e)}
