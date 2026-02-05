@@ -31,6 +31,7 @@ function Dashboard() {
   const [comparisonData, setComparisonData] = useState([]);
   const [chartTags, setChartTags] = useState([]);
   const [chartDisplayMode, setChartDisplayMode] = useState('both'); // 'both', 'ty', 'ly'
+  const [eventData, setEventData] = useState([]);
 
   // Segment filter states
   const [businessSegment, setBusinessSegment] = useState('All');
@@ -143,6 +144,10 @@ function Dashboard() {
 
   useEffect(() => {
     fetchDataStatus();
+    // Fetch event tracker data once on mount
+    api.get('/api/events')
+      .then(res => setEventData(res.data.events || []))
+      .catch(err => console.error('Error fetching events:', err));
   }, [fetchDataStatus]);
 
   useEffect(() => {
@@ -400,6 +405,7 @@ function Dashboard() {
               chartTags={chartTags}
               onTagsChange={setChartTags}
               displayMode={chartDisplayMode}
+              events={eventData}
             />
           </div>
         </section>

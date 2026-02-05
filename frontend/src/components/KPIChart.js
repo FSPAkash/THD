@@ -7,21 +7,32 @@ import {
 import { useAuth } from '../context/AuthContext';
 import './KPIChart.css';
 
-// Preset event tags
+// Preset event tags - these are for manual tagging of events NOT in the Event Tracker
+// Events like Black Friday, Labor Day, etc. come from the Event Tracker automatically
 const PRESET_TAGS = [
   { id: 'thanksgiving', name: 'Thanksgiving', color: '#F96302' },
-  { id: 'blackfriday', name: 'Black Friday', color: '#1d1d1f' },
-  { id: 'laborday', name: 'Labor Day', color: '#007AFF' },
   { id: 'july4th', name: '4th of July', color: '#FF3B30' },
-  { id: 'tier1', name: 'Tier 1 Event', color: '#5856D6' }
+  { id: 'tier1', name: 'Tier 1 Event', color: '#5856D6' },
+  { id: 'promo', name: 'Promo', color: '#34C759' },
+  { id: 'outage', name: 'Outage/Issue', color: '#FF2D55' }
 ];
 
 // Chart margins matching Recharts config
 const CHART_MARGINS = { top: 20, right: 20, left: 10, bottom: 20 };
 const Y_AXIS_WIDTH = 60;
 const CHART_HEIGHT = 320;
+// Height of the actual plot area (excluding X-axis labels ~30px and Legend ~24px)
+const PLOT_AREA_HEIGHT = CHART_HEIGHT - CHART_MARGINS.top - CHART_MARGINS.bottom - 54;
 
-function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, chartTags, onTagsChange, displayMode = 'both' }) {
+// Convert hex color string to rgba with given alpha
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, chartTags, onTagsChange, displayMode = 'both', events = [] }) {
   const { isBetaMode } = useAuth();
   const isBeta = isBetaMode();
   const chartContainerRef = useRef(null);
@@ -34,10 +45,25 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
   const [dragPreview, setDragPreview] = useState(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [expandedTagId, setExpandedTagId] = useState(null);
+  const [showSuggestedEvents, setShowSuggestedEvents] = useState(false);
+  const [dismissedEvents, setDismissedEvents] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem('dismissedEvents');
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
+  const [editingEvent, setEditingEvent] = useState(null);
 
   // Use comparison data if available, otherwise fall back to regular data
-  const chartData = comparisonData && comparisonData.length > 0 ? comparisonData : data;
+  const rawChartData = comparisonData && comparisonData.length > 0 ? comparisonData : data;
   const hasComparison = comparisonData && comparisonData.length > 0;
+
+  // Add displayDate field based on displayMode
+  // When showing LY only, use date_ly for X-axis; otherwise use date (TY)
+  const chartData = rawChartData?.map(d => ({
+    ...d,
+    displayDate: displayMode === 'ly' && d.date_ly ? d.date_ly : d.date
+  })) || [];
 
   // Track container width for tag positioning
   useEffect(() => {
@@ -169,7 +195,11 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
-      const dateStr = new Date(label).toLocaleDateString('en-US', {
+      // Find the data point to access both TY and LY dates
+      const dataPoint = chartData?.find(d => d.displayDate === label);
+
+      // Format dates based on what's being shown
+      const formatDate = (dateStr) => new Date(dateStr).toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -177,11 +207,21 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
       });
 
       // Check if there's a tag for this date
-      const dateTag = chartTags?.find(t => t.date === label);
+      const dateTag = chartTags?.find(t => t.date === label || t.date === dataPoint?.date);
 
       return (
         <div className="chart-tooltip">
-          <p className="tooltip-date">{dateStr}</p>
+          {/* Show appropriate date header based on displayMode */}
+          {displayMode === 'ly' ? (
+            <p className="tooltip-date">{formatDate(dataPoint?.date_ly || label)}</p>
+          ) : displayMode === 'both' && dataPoint?.date && dataPoint?.date_ly ? (
+            <>
+              <p className="tooltip-date">TY: {formatDate(dataPoint.date)}</p>
+              <p className="tooltip-date tooltip-date-ly">LY: {formatDate(dataPoint.date_ly)}</p>
+            </>
+          ) : (
+            <p className="tooltip-date">{formatDate(dataPoint?.date || label)}</p>
+          )}
           {dateTag && (
             <p className="tooltip-tag">
               <span className="tooltip-tag-marker" style={{ background: dateTag.color }}></span>
@@ -304,6 +344,245 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     }
   };
 
+  // Persist dismissedEvents to sessionStorage whenever they change
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('dismissedEvents', JSON.stringify(dismissedEvents));
+    } catch { /* ignore */ }
+  }, [dismissedEvents]);
+
+  // Dismiss a suggested event (session-scoped)
+  const handleDismissEvent = (eventId) => {
+    setDismissedEvents(prev => [...prev, eventId]);
+  };
+
+  // Reset all dismissed events
+  const handleResetDismissed = () => {
+    setDismissedEvents([]);
+  };
+
+  // Get list of pinned event IDs from chartTags
+  const pinnedEventIds = (chartTags || [])
+    .filter(tag => tag.sourceEventId)
+    .map(tag => tag.sourceEventId);
+
+  // Year-aware event filtering: returns events adjusted to the visible chart date range
+  // Excludes dismissed and pinned events
+  const getFilteredEvents = useCallback(() => {
+    if (!events || events.length === 0 || !chartData || chartData.length === 0) return [];
+
+    const chartStartDate = chartData[0]?.date;
+    const chartEndDate = chartData[chartData.length - 1]?.date;
+    if (!chartStartDate || !chartEndDate) return [];
+
+    const chartStart = new Date(chartStartDate + 'T00:00:00');
+    const chartEnd = new Date(chartEndDate + 'T00:00:00');
+
+    // Determine year label suffix based on displayMode
+    const yearLabel = displayMode === 'ly' ? 'LY' : 'TY';
+
+    return events
+      .filter(ev => !dismissedEvents.includes(ev.id))
+      .filter(ev => !pinnedEventIds.includes(ev.id)) // Exclude pinned events
+      .map(ev => {
+        let evStart = new Date(ev.startDate + 'T00:00:00');
+        let evEnd = new Date(ev.endDate + 'T00:00:00');
+
+        // When showing LY only, shift event dates back 365 days
+        if (displayMode === 'ly') {
+          evStart = new Date(evStart.getTime() - 365 * 24 * 60 * 60 * 1000);
+          evEnd = new Date(evEnd.getTime() - 365 * 24 * 60 * 60 * 1000);
+        }
+
+        return { ...ev, adjustedStart: evStart, adjustedEnd: evEnd, yearLabel };
+      })
+      .filter(ev => {
+        // Keep only events that overlap with the visible chart range
+        return ev.adjustedStart <= chartEnd && ev.adjustedEnd >= chartStart;
+      });
+  }, [events, chartData, displayMode, dismissedEvents, pinnedEventIds]);
+
+  // Convert a date to the nearest data index in chartData
+  const getIndexForDate = useCallback((targetDate) => {
+    if (!chartData || chartData.length === 0) return -1;
+    let bestIdx = 0;
+    let bestDiff = Infinity;
+    for (let i = 0; i < chartData.length; i++) {
+      const d = new Date(chartData[i].date + 'T00:00:00');
+      const diff = Math.abs(d.getTime() - targetDate.getTime());
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }, [chartData]);
+
+  // Helper to render a single event span (used for both suggestions and pinned)
+  const renderSingleSpan = (ev, isPinned = false) => {
+    const currentWidth = containerWidth || (chartContainerRef.current?.offsetWidth || 0);
+    if (currentWidth === 0) return null;
+
+    const chartAreaLeft = Y_AXIS_WIDTH + CHART_MARGINS.left;
+    const chartAreaWidth = currentWidth - chartAreaLeft - CHART_MARGINS.right;
+
+    // For pinned spans, adjustedStart/End are stored as ISO strings
+    const evStart = isPinned ? new Date(ev.adjustedStart) : ev.adjustedStart;
+    const evEnd = isPinned ? new Date(ev.adjustedEnd) : ev.adjustedEnd;
+
+    const startIdx = getIndexForDate(evStart);
+    const endIdx = getIndexForDate(evEnd);
+
+    // Clamp indices to chart bounds
+    const clampedStart = Math.max(0, startIdx);
+    const clampedEnd = Math.min(chartData.length - 1, endIdx);
+
+    // Calculate pixel positions
+    const startPct = chartData.length === 1 ? 0.5 : clampedStart / (chartData.length - 1);
+    const endPct = chartData.length === 1 ? 0.5 : clampedEnd / (chartData.length - 1);
+
+    const leftPx = chartAreaLeft + startPct * chartAreaWidth;
+    const rightPx = chartAreaLeft + endPct * chartAreaWidth;
+    const widthPx = Math.max(rightPx - leftPx, 4); // minimum 4px width
+
+    const centerPx = leftPx + widthPx / 2;
+
+    // Solid fill with edge borders - cleaner than gradient
+    const fillColor = hexToRgba(ev.color, 0.12);
+    const borderColor = hexToRgba(ev.color, 0.5);
+
+    return (
+      <div
+        key={ev.id}
+        className={`event-span ${isPinned ? 'pinned' : ''}`}
+        style={{
+          left: `${leftPx}px`,
+          width: `${widthPx}px`,
+          background: fillColor,
+          borderLeft: `2px solid ${borderColor}`,
+          borderRight: `2px solid ${borderColor}`,
+        }}
+      >
+        {/* Pill label at center */}
+        <div
+          className="event-span-label"
+          style={{ left: `${centerPx - leftPx}px`, background: ev.color }}
+          onClick={() => !isPinned && setEditingEvent(editingEvent?.id === ev.id ? null : ev)}
+        >
+          <span className="event-span-label-text">
+            {ev.name || ev.label} ({ev.yearLabel})
+          </span>
+          {isPinned ? (
+            <button
+              className="event-span-dismiss"
+              onClick={(e) => { e.stopPropagation(); handleRemoveTag(ev.id); }}
+              title="Remove"
+            >
+              x
+            </button>
+          ) : (
+            <button
+              className="event-span-dismiss"
+              onClick={(e) => { e.stopPropagation(); handleDismissEvent(ev.id); }}
+              title="Dismiss"
+            >
+              x
+            </button>
+          )}
+        </div>
+
+        {/* Edit popover - only for suggestions, not pinned */}
+        {!isPinned && editingEvent?.id === ev.id && (
+          <div className="event-span-edit" style={{ left: `${centerPx - leftPx}px` }}>
+            <div className="event-span-edit-header">
+              <strong>{ev.label}</strong>
+              <button className="event-span-edit-close" onClick={() => setEditingEvent(null)}>x</button>
+            </div>
+            <p className="event-span-edit-dates">
+              {new Date(ev.adjustedStart).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              {' - '}
+              {new Date(ev.adjustedEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </p>
+            <p className="event-span-edit-tier">
+              {ev.tier ? 'Tier 1 Event' : 'Tracked Event'}
+            </p>
+            <button
+              className="event-span-pin-btn"
+              onClick={() => {
+                // Pin as a permanent span (not point marker) with full event data
+                if (onTagsChange) {
+                  onTagsChange([...(chartTags || []), {
+                    id: `pinned-${ev.id}-${Date.now()}`,
+                    name: ev.label,
+                    color: ev.color,
+                    // Store the original event ID to track which event was pinned
+                    sourceEventId: ev.id,
+                    // Store span data for rendering as a span
+                    isSpan: true,
+                    startDate: ev.startDate,
+                    endDate: ev.endDate,
+                    adjustedStart: ev.adjustedStart.toISOString(),
+                    adjustedEnd: ev.adjustedEnd.toISOString(),
+                    yearLabel: ev.yearLabel,
+                    tier: ev.tier,
+                    source: 'suggested'
+                  }]);
+                }
+                setEditingEvent(null);
+              }}
+            >
+              Pin to chart
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Get pinned span tags that overlap with current chart range
+  const getPinnedSpans = useCallback(() => {
+    if (!chartTags || !chartData || chartData.length === 0) return [];
+
+    const chartStartDate = chartData[0]?.date;
+    const chartEndDate = chartData[chartData.length - 1]?.date;
+    if (!chartStartDate || !chartEndDate) return [];
+
+    const chartStart = new Date(chartStartDate + 'T00:00:00');
+    const chartEnd = new Date(chartEndDate + 'T00:00:00');
+
+    return chartTags
+      .filter(tag => tag.isSpan)
+      .filter(tag => {
+        const tagStart = new Date(tag.adjustedStart);
+        const tagEnd = new Date(tag.adjustedEnd);
+        return tagStart <= chartEnd && tagEnd >= chartStart;
+      });
+  }, [chartTags, chartData]);
+
+  // Render gradient event spans behind the chart (both suggestions and pinned)
+  const renderEventSpans = () => {
+    const currentWidth = containerWidth || (chartContainerRef.current?.offsetWidth || 0);
+    if (currentWidth === 0) return null;
+
+    // Get pinned spans (always show)
+    const pinnedSpans = getPinnedSpans();
+
+    // Get suggested events (only when toggle is on)
+    const suggestedEvents = showSuggestedEvents ? getFilteredEvents() : [];
+
+    // If nothing to render, return null
+    if (pinnedSpans.length === 0 && suggestedEvents.length === 0) return null;
+
+    return (
+      <>
+        {/* Render pinned spans first (always visible) */}
+        {pinnedSpans.map(span => renderSingleSpan(span, true))}
+        {/* Render suggested events (when toggle is on) */}
+        {suggestedEvents.map(ev => renderSingleSpan(ev, false))}
+      </>
+    );
+  };
+
   const commonProps = {
     data: chartData,
     margin: CHART_MARGINS
@@ -315,6 +594,18 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     fontWeight: 500
   };
 
+  // Calculate tick interval for evenly spaced X-axis labels
+  // Target ~6-8 ticks for readability, ensuring even spacing
+  const calculateTickInterval = () => {
+    if (!chartData || chartData.length <= 1) return 0;
+    const dataPoints = chartData.length;
+    const targetTicks = 7; // Aim for 7 evenly spaced ticks
+    const interval = Math.max(0, Math.floor((dataPoints - 1) / (targetTicks - 1)) - 1);
+    return interval;
+  };
+
+  const tickInterval = calculateTickInterval();
+
   // Get the correct data keys based on comparison mode
   const tyDataKey = hasComparison ? `${kpi}_ty` : kpi;
   const lyDataKey = hasComparison ? `${kpi}_ly` : null;
@@ -323,9 +614,13 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
   const showTY = displayMode === 'both' || displayMode === 'ty';
   const showLY = displayMode === 'both' || displayMode === 'ly';
 
-  // Render placed tags as overlay elements
+  // Render placed tags as overlay elements (point tags only, not span tags)
   const renderPlacedTags = () => {
     if (!chartTags || chartTags.length === 0 || !chartData || chartData.length === 0) return null;
+
+    // Filter out span tags - they're rendered in renderEventSpans
+    const pointTags = chartTags.filter(t => !t.isSpan);
+    if (pointTags.length === 0) return null;
 
     // Get current width - fallback to ref if state is 0
     const currentWidth = containerWidth || (chartContainerRef.current?.offsetWidth || 0);
@@ -334,7 +629,7 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     // Pole extends from tag area into chart
     const poleHeight = CHART_HEIGHT - CHART_MARGINS.bottom - 40;
 
-    return chartTags.map((tag) => {
+    return pointTags.map((tag) => {
       // Find the date index - use stored index first, then lookup by date
       let dateIndex = tag.dateIndex;
       if (dateIndex === undefined || dateIndex < 0 || dateIndex >= chartData.length) {
@@ -458,12 +753,12 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.04)" vertical={false} />
             <XAxis
-              dataKey="date"
+              dataKey="displayDate"
               tick={axisStyle}
               tickLine={false}
               axisLine={{ stroke: 'rgba(0,0,0,0.08)' }}
               tickFormatter={formatAxisDate}
-              interval="preserveStartEnd"
+              interval={tickInterval}
             />
             <YAxis
               tick={axisStyle}
@@ -474,7 +769,7 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
             />
             <Tooltip content={<CustomTooltip />} />
             {hasComparison && <Legend />}
-            {launchDate && (
+            {launchDate && showTY && (
               <ReferenceLine
                 x={launchDate}
                 stroke="#F96302"
@@ -522,12 +817,12 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
           <BarChart {...commonProps}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.04)" vertical={false} />
             <XAxis
-              dataKey="date"
+              dataKey="displayDate"
               tick={axisStyle}
               tickLine={false}
               axisLine={{ stroke: 'rgba(0,0,0,0.08)' }}
               tickFormatter={formatAxisDate}
-              interval="preserveStartEnd"
+              interval={tickInterval}
             />
             <YAxis
               tick={axisStyle}
@@ -538,7 +833,7 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
             />
             <Tooltip content={<CustomTooltip />} />
             {hasComparison && <Legend />}
-            {launchDate && (
+            {launchDate && showTY && (
               <ReferenceLine
                 x={launchDate}
                 stroke="#F96302"
@@ -572,12 +867,12 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
           <LineChart {...commonProps}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.04)" vertical={false} />
             <XAxis
-              dataKey="date"
+              dataKey="displayDate"
               tick={axisStyle}
               tickLine={false}
               axisLine={{ stroke: 'rgba(0,0,0,0.08)' }}
               tickFormatter={formatAxisDate}
-              interval="preserveStartEnd"
+              interval={tickInterval}
             />
             <YAxis
               tick={axisStyle}
@@ -588,7 +883,7 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
             />
             <Tooltip content={<CustomTooltip />} />
             {hasComparison && <Legend />}
-            {launchDate && (
+            {launchDate && showTY && (
               <ReferenceLine
                 x={launchDate}
                 stroke="#F96302"
@@ -672,6 +967,11 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
           {dragPreview && renderDragPreview()}
         </div>
 
+        {/* Suggested event spans - rendered behind the chart */}
+        <div className="event-spans-layer" style={{ height: `${PLOT_AREA_HEIGHT}px` }}>
+          {renderEventSpans()}
+        </div>
+
         {/* Chart */}
         <ResponsiveContainer width="100%" height={320}>
           {renderChart()}
@@ -691,10 +991,19 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
           <span>Add Info Tag</span>
         </button>
 
-        {/* Active Tags Display */}
-        {chartTags && chartTags.length > 0 && (
+        {/* Suggested Events Toggle */}
+        <button
+          className={`suggested-events-toggle ${showSuggestedEvents ? 'active' : ''}`}
+          onClick={() => setShowSuggestedEvents(!showSuggestedEvents)}
+        >
+          <span className={`suggested-events-dot ${showSuggestedEvents ? 'on' : 'off'}`}></span>
+          <span>Suggested Events</span>
+        </button>
+
+        {/* Active Tags Display - only show point tags, not span tags */}
+        {chartTags && chartTags.filter(t => !t.isSpan).length > 0 && (
           <div className="active-tags">
-            {chartTags.map(tag => (
+            {chartTags.filter(t => !t.isSpan).map(tag => (
               <span
                 key={tag.id}
                 className="active-tag"
@@ -728,8 +1037,24 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
             </button>
           </div>
 
+          {dismissedEvents.length > 0 && (
+            <button className="reset-dismissed-btn" onClick={handleResetDismissed}>
+              Reset {dismissedEvents.length} dismissed event{dismissedEvents.length !== 1 ? 's' : ''}
+            </button>
+          )}
+
           <div className="preset-tags">
-            {PRESET_TAGS.map(tag => (
+            {PRESET_TAGS
+              // Filter out preset tags that match pinned events by name
+              .filter(tag => {
+                const tagNameLower = tag.name.toLowerCase();
+                // Check if this tag name matches any pinned event
+                const isPinnedAlready = (chartTags || []).some(ct =>
+                  ct.isSpan && ct.name.toLowerCase() === tagNameLower
+                );
+                return !isPinnedAlready;
+              })
+              .map(tag => (
               <div
                 key={tag.id}
                 className="draggable-tag"

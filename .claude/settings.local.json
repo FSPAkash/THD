@@ -6,7 +6,9 @@
       "Bash(git fetch:*)",
       "Bash(git pull:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(python:*)",
+      "Bash(npx react-scripts build)"
     ]
   }
 }

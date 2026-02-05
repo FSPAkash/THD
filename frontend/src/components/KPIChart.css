@@ -38,6 +38,11 @@
   margin: 0 0 4px 0;
 }
 
+.tooltip-date-ly {
+  margin-top: 2px;
+  color: #86868b;
+}
+
 .tooltip-value {
   font-size: 14px;
   font-weight: 600;
@@ -718,6 +723,242 @@
 }
 
 /* ==================== */
+/* Suggested Events     */
+/* ==================== */
+
+.suggested-events-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid rgba(88, 86, 214, 0.3);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5856D6;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.suggested-events-toggle:hover {
+  background: rgba(88, 86, 214, 0.08);
+  border-color: rgba(88, 86, 214, 0.5);
+}
+
+.suggested-events-toggle.active {
+  background: rgba(88, 86, 214, 0.1);
+  border-color: #5856D6;
+}
+
+.suggested-events-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: background 0.2s ease;
+}
+
+.suggested-events-dot.on {
+  background: #5856D6;
+}
+
+.suggested-events-dot.off {
+  background: rgba(88, 86, 214, 0.3);
+}
+
+/* Event spans layer - positioned over chart area, stops at X-axis */
+/* Height is set inline via JS using PLOT_AREA_HEIGHT constant */
+.event-spans-layer {
+  position: absolute;
+  top: 28px; /* height of tag-area */
+  left: 0;
+  right: 0;
+  /* height set inline */
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Individual event span - solid fill with edge borders */
+/* Background and borders are set inline via JS using the event's color */
+.event-span {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+/* Pinned spans have a subtle border to distinguish them */
+.event-span.pinned .event-span-label {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+
+/* Pill label floating at center of span */
+.event-span-label {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  color: white;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  z-index: 2;
+}
+
+.event-span-label:hover {
+  transform: translateX(-50%) scale(1.04);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+
+.event-span-label-text {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Dismiss (X) button - visible on hover */
+.event-span-dismiss {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  margin-left: 2px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  pointer-events: auto;
+}
+
+.event-span-label:hover .event-span-dismiss {
+  opacity: 1;
+}
+
+.event-span-dismiss:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Event edit popover */
+.event-span-edit {
+  position: absolute;
+  top: 28px;
+  transform: translateX(-50%);
+  width: 170px;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  pointer-events: auto;
+  z-index: 30;
+  animation: eventEditFadeIn 0.15s ease;
+}
+
+@keyframes eventEditFadeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.event-span-edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.event-span-edit-header strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.event-span-edit-close {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.event-span-edit-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.event-span-edit-dates {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 0 0 4px 0;
+}
+
+.event-span-edit-tier {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin: 0 0 8px 0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.event-span-pin-btn {
+  width: 100%;
+  padding: 6px 10px;
+  background: #5856D6;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.event-span-pin-btn:hover {
+  background: #4a48c4;
+}
+
+/* Reset dismissed button in tag panel */
+.reset-dismissed-btn {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  margin-bottom: 10px;
+  background: rgba(88, 86, 214, 0.06);
+  border: 1px solid rgba(88, 86, 214, 0.2);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #5856D6;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.reset-dismissed-btn:hover {
+  background: rgba(88, 86, 214, 0.12);
+  border-color: rgba(88, 86, 214, 0.4);
+}
+
+/* ==================== */
 /* Responsive           */
 /* ==================== */
 
@@ -789,5 +1030,23 @@
 
   .custom-tag-textarea {
     min-height: 40px;
+  }
+
+  .suggested-events-toggle {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .event-span-label {
+    padding: 2px 6px;
+  }
+
+  .event-span-label-text {
+    font-size: 9px;
+  }
+
+  .event-span-edit {
+    width: 150px;
+    padding: 8px 10px;
   }
 }

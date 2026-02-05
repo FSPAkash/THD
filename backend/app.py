@@ -17,7 +17,8 @@ from utils import (
     get_use_cases,
     get_launch_date,
     get_stakeholders,
-    get_daily_comparison_data
+    get_daily_comparison_data,
+    parse_event_tracker
 )
 
 try:
@@ -439,6 +440,19 @@ def get_page_types():
     except Exception as e:
         print(f"Page Types Error: {str(e)}")
         return jsonify({'page_types': ['All']})
+
+
+@app.route('/api/events', methods=['GET'])
+@jwt_required()
+def get_events():
+    """Get consolidated event spans from Event Tracker.xlsx."""
+    try:
+        events = parse_event_tracker()
+        return jsonify({'events': events})
+    except Exception as e:
+        print(f"Events Error: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/data/status', methods=['GET'])
