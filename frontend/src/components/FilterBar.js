@@ -76,9 +76,41 @@ function FilterBar({
   pageType,
   onPageTypeChange,
   pageTypes = ['All'],
-  onReset
+  onReset,
+  onRequestQueryEdit
 }) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showQueryTooltip, setShowQueryTooltip] = useState(false);
+  const [queryExpanded, setQueryExpanded] = useState(false);
+  const queryTooltipRef = useRef(null);
+
+  const dummySqlQuery = `SELECT
+  d.date_key,
+  d.use_case,
+  SUM(d.visits) AS visits,
+  SUM(d.orders) AS orders,
+  SUM(d.revenue) AS revenue,
+  SAFE_DIVIDE(SUM(d.orders), SUM(d.visits)) AS cvr,
+  SAFE_DIVIDE(SUM(d.revenue), SUM(d.orders)) AS aov,
+  SAFE_DIVIDE(SUM(d.revenue), SUM(d.visits)) AS rpv
+FROM analytics.daily_kpi_summary d
+WHERE d.use_case = '${selectedUseCase}'
+  AND d.date_key >= DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
+GROUP BY d.date_key, d.use_case
+ORDER BY d.date_key DESC;`;
+
+  // Close tooltip when clicking outside (only in non-expanded mode)
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (!queryExpanded && queryTooltipRef.current && !queryTooltipRef.current.contains(event.target)) {
+        setShowQueryTooltip(false);
+      }
+    }
+    if (showQueryTooltip && !queryExpanded) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showQueryTooltip, queryExpanded]);
 
   // Check if any filters are non-default (excluding use case)
   const hasActiveFilters = selectedPeriod !== 'all' ||
@@ -191,6 +223,58 @@ function FilterBar({
           </div>
         </div>
 
+        {/* Query Info Button */}
+        <div className="filter-group query-info-group" ref={queryTooltipRef}>
+          <label className="filter-label">Query</label>
+          <div className="filter-query-wrapper">
+            <button
+              className="toggle-btn query-info-btn"
+              onClick={() => {
+                setShowQueryTooltip(!showQueryTooltip);
+                setQueryExpanded(false);
+              }}
+            >
+              i
+            </button>
+            {showQueryTooltip && !queryExpanded && (
+              <div className="query-tooltip">
+                <div className="query-tooltip-header">
+                  <span className="query-tooltip-title">SQL Query</span>
+                </div>
+                <pre className="query-tooltip-code">{dummySqlQuery}</pre>
+                <div className="query-tooltip-footer">
+                  <button
+                    className="query-analyze-btn"
+                    onClick={() => setQueryExpanded(true)}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <polyline points="9 21 3 21 3 15"></polyline>
+                      <line x1="21" y1="3" x2="14" y2="10"></line>
+                      <line x1="3" y1="21" x2="10" y2="14"></line>
+                    </svg>
+                    Analyze Query
+                  </button>
+                  <button
+                    className="query-request-edit-btn"
+                    onClick={() => {
+                      setShowQueryTooltip(false);
+                      setQueryExpanded(false);
+                      if (onRequestQueryEdit) onRequestQueryEdit();
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    Request Edit
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Reset Button */}
         {hasActiveFilters && (
           <div className="filter-group reset-group">
@@ -229,6 +313,53 @@ function FilterBar({
           </div>
         )}
       </div>
+
+      {/* Expanded Query Modal - rendered outside filter-bar-content to avoid flex interference */}
+      {showQueryTooltip && queryExpanded && (
+        <div className="query-expanded-backdrop" onClick={() => { setQueryExpanded(false); setShowQueryTooltip(false); }}>
+          <div className="query-expanded-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="query-expanded-header">
+              <button
+                className="query-back-btn"
+                onClick={() => setQueryExpanded(false)}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12"></line>
+                  <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Back
+              </button>
+              <span className="query-expanded-title">SQL Query</span>
+              <button
+                className="query-expanded-close"
+                onClick={() => { setQueryExpanded(false); setShowQueryTooltip(false); }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            <pre className="query-expanded-code">{dummySqlQuery}</pre>
+            <div className="query-expanded-footer">
+              <button
+                className="query-request-edit-btn"
+                onClick={() => {
+                  setShowQueryTooltip(false);
+                  setQueryExpanded(false);
+                  if (onRequestQueryEdit) onRequestQueryEdit();
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Request Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

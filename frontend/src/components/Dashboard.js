@@ -4,6 +4,7 @@ import FilterBar from './FilterBar';
 import MetricCard from './MetricCard';
 import MetricModal from './MetricModal';
 import SendReportModal from './SendReportModal';
+import QueryInfoModal from './QueryInfoModal';
 import KPIChart from './KPIChart';
 import AdvancedAnalysis from './AdvancedAnalysis';
 import DataUpload from './DataUpload';
@@ -27,6 +28,7 @@ function Dashboard() {
   const [actualPeriodDays, setActualPeriodDays] = useState(0);
   const [modalData, setModalData] = useState(null);
   const [showSendModal, setShowSendModal] = useState(false);
+  const [showQueryEditModal, setShowQueryEditModal] = useState(false);
   const [comparisonData, setComparisonData] = useState([]);
   const [chartTags, setChartTags] = useState([]);
   const [chartDisplayMode, setChartDisplayMode] = useState('both'); // 'both', 'ty', 'ly'
@@ -473,6 +475,7 @@ function Dashboard() {
           onPageTypeChange={setPageType}
           pageTypes={pageTypes}
           onReset={handleResetFilters}
+          onRequestQueryEdit={() => setShowQueryEditModal(true)}
         />
       )}
 
@@ -482,6 +485,13 @@ function Dashboard() {
 
       {modalData && (
         <MetricModal data={modalData} onClose={handleCloseModal} />
+      )}
+
+      {showQueryEditModal && (
+        <QueryInfoModal
+          useCase={selectedUseCase}
+          onClose={() => setShowQueryEditModal(false)}
+        />
       )}
 
       {showSendModal && (
