@@ -7,7 +7,7 @@
 
 .filter-bar-content {
   position: relative;
-  z-index: 200;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -441,13 +441,15 @@
   top: calc(100% + 10px);
   right: -8px;
   width: 420px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(238, 113, 37,0.075);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 12px;
   box-shadow:
     0 4px 24px rgba(0, 0, 0, 0.12),
     0 0 16px rgba(238, 113, 37, 0.1);
-  z-index: 200;
+  z-index: 00;
   animation: queryTooltipFadeIn 0.15s ease;
   overflow: hidden;
 }
@@ -469,7 +471,7 @@
   bottom: 100%;
   right: 16px;
   border: 6px solid transparent;
-  border-bottom-color: #fff;
+  border-bottom-color: rgba(255, 255, 255, 0.3);
 }
 
 .query-tooltip-header {
