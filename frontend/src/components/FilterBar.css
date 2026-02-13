@@ -449,9 +449,11 @@
   box-shadow:
     0 4px 24px rgba(0, 0, 0, 0.12),
     0 0 16px rgba(238, 113, 37, 0.1);
-  z-index: 00;
+  z-index: 100;
   animation: queryTooltipFadeIn 0.15s ease;
-  overflow: hidden;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  overscroll-behavior: contain;
 }
 
 @keyframes queryTooltipFadeIn {

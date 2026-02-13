@@ -9,7 +9,10 @@
       "Bash(git push:*)",
       "Bash(python:*)",
       "Bash(npx react-scripts build)",
-      "Bash(pushd:*)"
+      "Bash(pushd:*)",
+      "Bash(dir:*)",
+      "Bash(grep:*)",
+      "Bash(python3:*)"
     ]
   }
 }

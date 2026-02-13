@@ -883,6 +883,105 @@ def test_email():
         })
 
 
+def _save_feedback_github(new_row):
+    """Save feedback by committing updated Excel to GitHub repo."""
+    import requests as gh_requests
+    import base64
+    from io import BytesIO
+
+    token = os.environ['GITHUB_TOKEN']
+    repo = os.environ.get('GITHUB_REPO')  # e.g. "AkashPatil/THD-Dashboard"
+    path = os.environ.get('GITHUB_FEEDBACK_PATH', 'backend/data/feedback.xlsx')
+    branch = os.environ.get('GITHUB_BRANCH', 'main')
+
+    headers = {
+        'Authorization': f'token {token}',
+        'Accept': 'application/vnd.github.v3+json'
+    }
+    api_url = f'https://api.github.com/repos/{repo}/contents/{path}'
+
+    # Try to fetch existing file from GitHub
+    resp = gh_requests.get(api_url, headers=headers, params={'ref': branch})
+    sha = None
+
+    if resp.status_code == 200:
+        file_data = resp.json()
+        sha = file_data['sha']
+        content_bytes = base64.b64decode(file_data['content'])
+        existing_df = pd.read_excel(BytesIO(content_bytes))
+        df = pd.concat([existing_df, pd.DataFrame([new_row])], ignore_index=True)
+    else:
+        df = pd.DataFrame([new_row])
+
+    # Write DataFrame to bytes
+    output = BytesIO()
+    df.to_excel(output, index=False)
+    encoded = base64.b64encode(output.getvalue()).decode('utf-8')
+
+    # Commit to GitHub
+    commit_data = {
+        'message': f'feedback: {new_row["User"]} - {new_row["Topic"]}',
+        'content': encoded,
+        'branch': branch,
+    }
+    if sha:
+        commit_data['sha'] = sha
+
+    put_resp = gh_requests.put(api_url, headers=headers, json=commit_data)
+    if put_resp.status_code not in (200, 201):
+        raise Exception(f'GitHub API error: {put_resp.status_code} - {put_resp.text}')
+
+
+def _save_feedback_local(new_row):
+    """Save feedback to local Excel file."""
+    feedback_file = os.path.join(app.config['UPLOAD_FOLDER'], 'feedback.xlsx')
+
+    if os.path.exists(feedback_file):
+        existing_df = pd.read_excel(feedback_file)
+        df = pd.concat([existing_df, pd.DataFrame([new_row])], ignore_index=True)
+    else:
+        df = pd.DataFrame([new_row])
+
+    df.to_excel(feedback_file, index=False)
+
+
+@app.route('/api/feedback', methods=['POST'])
+@jwt_required()
+def submit_feedback():
+    """Save user feedback to an Excel file, either locally or via GitHub."""
+    try:
+        data = request.get_json()
+        topic = data.get('topic', '')
+        topic_label = data.get('topic_label', '')
+        feedback = data.get('feedback', '')
+        rating = data.get('rating')
+        use_case = data.get('use_case', 'N/A')
+        user = get_jwt_identity()
+
+        if not feedback.strip():
+            return jsonify({'error': 'Feedback text is required'}), 400
+
+        new_row = {
+            'Timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'User': user,
+            'Use Case': use_case,
+            'Topic': topic_label,
+            'Rating': rating if rating else '',
+            'Feedback': feedback.strip()
+        }
+
+        if os.environ.get('GITHUB_TOKEN') and os.environ.get('GITHUB_REPO'):
+            _save_feedback_github(new_row)
+        else:
+            _save_feedback_local(new_row)
+
+        return jsonify({'success': True, 'message': 'Feedback saved'})
+    except Exception as e:
+        print(f"Feedback error: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'error': f'Failed to save feedback: {str(e)}'}), 500
+
+
 @app.errorhandler(404)
 def not_found(e):
     return send_from_directory(app.static_folder, 'index.html')

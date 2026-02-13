@@ -8,6 +8,7 @@ import QueryInfoModal from './QueryInfoModal';
 import KPIChart from './KPIChart';
 import AdvancedAnalysis from './AdvancedAnalysis';
 import DataUpload from './DataUpload';
+import FeedbackButton from './FeedbackButton';
 import api from '../utils/api';
 import './Dashboard.css';
 
@@ -507,6 +508,8 @@ function Dashboard() {
           selectedKPI={selectedKPI}
         />
       )}
+
+      <FeedbackButton useCase={selectedUseCase} />
     </div>
   );
 }

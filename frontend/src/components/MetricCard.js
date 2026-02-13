@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import './MetricCard.css';
 
@@ -19,6 +19,7 @@ function MetricCard({
   onExpand
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const cardRef = useRef(null);
   const { isBetaMode } = useAuth();
   
   const isBeta = isBetaMode();
@@ -121,10 +122,12 @@ function MetricCard({
     e.stopPropagation();
     if (showBetaPlaceholder) return;
     if (onExpand) {
+      const cardRect = cardRef.current?.getBoundingClientRect();
       onExpand({
         label, kpiKey, postLift, postTY, postLY,
         preLift, preTY, preLY, compLift, format,
-        isBpsKpi
+        isBpsKpi,
+        cardRect: cardRect ? { top: cardRect.top, left: cardRect.left, width: cardRect.width, height: cardRect.height, right: cardRect.right, bottom: cardRect.bottom } : null
       });
     }
   };
@@ -145,7 +148,8 @@ function MetricCard({
   }
 
   return (
-    <div 
+    <div
+      ref={cardRef}
       className={`metric-card ${isPositive ? 'positive' : ''} ${isNegative ? 'negative' : ''} ${isSelected ? 'selected' : ''}`}
       onClick={handleCardClick}
       onMouseEnter={() => setIsHovered(true)}
