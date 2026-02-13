@@ -1,5 +1,17 @@
 .upload-page {
   max-width: 100%;
+  animation: uploadPageIn 1s var(--ease-out-expo) both;
+}
+
+@keyframes uploadPageIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .upload-header {
@@ -44,19 +56,31 @@
   padding: 40px;
   text-align: center;
   cursor: pointer;
-  transition: var(--transition);
+  transition: border-color var(--duration-normal) var(--ease-smooth),
+              background var(--duration-normal) var(--ease-smooth),
+              transform var(--duration-normal) var(--ease-spring),
+              box-shadow var(--duration-normal) var(--ease-out-expo);
   background: rgba(0, 0, 0, 0.01);
 }
 
 .drop-zone:hover {
   border-color: var(--orange-primary);
   background: var(--orange-light);
+  transform: scale(1.01);
+  box-shadow: 0 4px 20px rgba(249, 99, 2, 0.1);
 }
 
 .drop-zone.active {
   border-color: var(--orange-primary);
   background: var(--orange-light);
-  transform: scale(1.01);
+  transform: scale(1.03);
+  box-shadow: 0 8px 32px rgba(249, 99, 2, 0.15);
+  animation: dropZonePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes dropZonePulse {
+  0%, 100% { box-shadow: 0 8px 32px rgba(249, 99, 2, 0.15); }
+  50% { box-shadow: 0 8px 40px rgba(249, 99, 2, 0.25); }
 }
 
 .drop-zone.has-file {

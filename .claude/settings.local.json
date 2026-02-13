@@ -12,7 +12,16 @@
       "Bash(pushd:*)",
       "Bash(dir:*)",
       "Bash(grep:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "WebFetch(domain:www.smashingmagazine.com)",
+      "WebFetch(domain:pqina.nl)",
+      "WebFetch(domain:www.joshwcomeau.com)",
+      "WebFetch(domain:joshcollinsworth.com)",
+      "WebFetch(domain:blog.pixelfreestudio.com)",
+      "WebFetch(domain:easings.net)",
+      "WebFetch(domain:web.dev)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:developer.chrome.com)"
     ]
   }
 }

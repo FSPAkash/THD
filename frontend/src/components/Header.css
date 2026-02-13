@@ -6,6 +6,18 @@
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  animation: headerSlideDown 1s var(--ease-out-expo) both;
+}
+
+@keyframes headerSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .header-inner {
@@ -71,7 +83,10 @@
   font-weight: 500;
   color: var(--text-secondary);
   border-radius: 8px;
-  transition: all 0.15s ease;
+  transition: color var(--duration-fast) var(--ease-smooth),
+              background var(--duration-fast) var(--ease-smooth),
+              box-shadow var(--duration-normal) var(--ease-out-expo),
+              transform var(--duration-fast) var(--ease-out-expo);
 }
 
 .nav-btn:hover {
@@ -79,10 +94,20 @@
   background: rgba(0, 0, 0, 0.04);
 }
 
+.nav-btn:active {
+  transform: scale(0.96);
+}
+
 .nav-btn.active {
   color: var(--white);
   background: rgba(238, 113, 37,0.85);
   box-shadow: 0 4px 12px rgba(249, 99, 2, 0.45);
+  animation: navActivePop var(--duration-normal) var(--ease-spring);
+}
+
+@keyframes navActivePop {
+  0% { transform: scale(0.92); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 /* Beta Badge */
@@ -109,6 +134,21 @@
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 20px;
+  animation: contextFadeIn 1s var(--ease-out-expo) 0.3s both;
+  transition: all var(--duration-normal) var(--ease-out-expo);
+}
+
+@keyframes contextFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
 }
 
 .context-usecase {
@@ -148,6 +188,18 @@
   font-weight: 600;
   border-radius: 10px;
   white-space: nowrap;
+  animation: filterTagIn var(--duration-normal) var(--ease-spring) both;
+}
+
+@keyframes filterTagIn {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .header-right {
@@ -168,17 +220,30 @@
   border-radius: 10px;
   font-size: 13px;
   font-weight: 600;
-  transition: all 0.2s ease;
+  transition: background var(--duration-fast) var(--ease-smooth),
+              transform var(--duration-normal) var(--ease-out-expo),
+              box-shadow var(--duration-normal) var(--ease-out-expo);
 }
 
 .send-report-btn:hover {
   background: rgba(238, 113, 37,0.75);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(249, 99, 2, 0.8);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(249, 99, 2, 0.5);
+}
+
+.send-report-btn:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 2px 8px rgba(249, 99, 2, 0.3);
+  transition-duration: var(--duration-instant);
 }
 
 .send-report-btn svg {
   flex-shrink: 0;
+  transition: transform var(--duration-normal) var(--ease-out-expo);
+}
+
+.send-report-btn:hover svg {
+  transform: translateX(2px);
 }
 
 /* Period Selector */
@@ -265,11 +330,19 @@
   justify-content: center;
   border-radius: 6px;
   color: var(--text-tertiary);
+  transition: background var(--duration-fast) var(--ease-smooth),
+              color var(--duration-fast) var(--ease-smooth),
+              transform var(--duration-fast) var(--ease-out-expo);
 }
 
 .logout-btn:hover {
   background: var(--negative-bg);
   color: var(--negative);
+  transform: scale(1.08);
+}
+
+.logout-btn:active {
+  transform: scale(0.94);
 }
 
 /* Responsive */

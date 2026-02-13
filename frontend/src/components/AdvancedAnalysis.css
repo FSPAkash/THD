@@ -1,5 +1,17 @@
 .analysis-page {
   max-width: 100%;
+  animation: analysisPageIn 1s var(--ease-out-expo) both;
+}
+
+@keyframes analysisPageIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .analysis-header {
@@ -109,8 +121,12 @@
   border-bottom: none;
 }
 
+.analysis-table tbody tr {
+  transition: background var(--duration-fast) var(--ease-smooth);
+}
+
 .analysis-table tbody tr:hover {
-  background: rgba(0, 0, 0, 0.01);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .sticky-col {

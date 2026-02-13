@@ -28,6 +28,21 @@
   --card-radius-lg: 24px;
   --transition: all 0.25s cubic-bezier(0.25, 0.1, 0.25, 1);
   --transition-fast: all 0.15s cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  /* Motion System - inspired by Apple HIG & Material motion */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out-quart: cubic-bezier(0.76, 0, 0.24, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-genie: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  --duration-instant: 120ms;
+  --duration-fast: 250ms;
+  --duration-normal: 450ms;
+  --duration-slow: 700ms;
+  --duration-entrance: 800ms;
+  --duration-exit: 350ms;
 }
 
 * {
@@ -146,4 +161,13 @@ select {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.2);
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

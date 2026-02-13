@@ -10,6 +10,12 @@
   justify-content: center;
   height: 100vh;
   gap: 16px;
+  animation: loadingFadeIn var(--duration-slow) var(--ease-smooth) both;
+}
+
+@keyframes loadingFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .dashboard-loading .loading-spinner {
@@ -34,6 +40,16 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 40px 40px 80px;
+  animation: contentFadeIn 1s var(--ease-out-expo) 0.15s both;
+}
+
+@keyframes contentFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* Empty State */
@@ -47,6 +63,27 @@
   margin-top: 60px;
   background: rgba(255, 255, 255, 0.9);
   border-radius: 24px;
+  animation: emptyStateIn 1.2s var(--ease-out-expo) both;
+}
+
+@keyframes emptyStateIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.empty-icon {
+  animation: emptyIconFloat 3s ease-in-out infinite;
+}
+
+@keyframes emptyIconFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
 }
 
 .empty-icon {
@@ -69,6 +106,18 @@
 /* Metrics Section */
 .metrics-section {
   margin-bottom: 60px;
+  animation: sectionSlideUp 1s var(--ease-out-expo) 0.3s both;
+}
+
+@keyframes sectionSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .section-header {
@@ -131,6 +180,7 @@
 /* Chart Section */
 .chart-section {
   margin-top: 20px;
+  animation: sectionSlideUp 1s var(--ease-out-expo) 0.6s both;
 }
 
 .chart-header {
@@ -267,7 +317,10 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color var(--duration-fast) var(--ease-smooth),
+              background var(--duration-normal) var(--ease-out-expo),
+              box-shadow var(--duration-normal) var(--ease-out-expo),
+              transform var(--duration-fast) var(--ease-out-expo);
 }
 
 .display-toggle-btn:hover:not(.active) {
@@ -275,10 +328,21 @@
   background: rgba(0, 0, 0, 0.04);
 }
 
+.display-toggle-btn:active {
+  transform: scale(0.94);
+  transition-duration: var(--duration-instant);
+}
+
 .display-toggle-btn.active {
   background: var(--white);
   color: var(--orange-primary);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  animation: toggleSlideIn var(--duration-normal) var(--ease-spring);
+}
+
+@keyframes toggleSlideIn {
+  from { transform: scale(0.9); opacity: 0.6; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 /* Glass-style Tooltip for Display Toggle */
@@ -363,11 +427,11 @@
 
 .chart-tags-reset-btn svg {
   flex-shrink: 0;
-  transition: transform 0.3s ease;
+  transition: transform var(--duration-slow) var(--ease-out-expo);
 }
 
 .chart-tags-reset-btn:hover svg {
-  transform: rotate(-45deg);
+  transform: rotate(-180deg);
 }
 
 /* Glass-style Tooltip for Reset Button */
@@ -434,17 +498,17 @@
     0 4px 24px rgba(0, 0, 0, 0.12),
     0 0 16px rgba(238, 113, 37, 0.1);
   z-index: 150;
-  animation: confirmFadeIn 0.15s ease;
+  animation: confirmFadeIn 0.5s var(--ease-out-expo);
 }
 
 @keyframes confirmFadeIn {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(4px);
+    transform: translateX(-50%) translateY(8px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 }
 
@@ -510,6 +574,11 @@
   padding: 32px;
   min-height: 420px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  transition: box-shadow var(--duration-slow) var(--ease-smooth);
+}
+
+.chart-container:hover {
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.07);
 }
 
 /* Responsive */

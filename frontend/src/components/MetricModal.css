@@ -9,12 +9,16 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 998;
-  animation: overlayFadeIn 0.25s ease;
+  animation: overlayFadeIn 0.5s var(--ease-smooth);
 }
 
 @keyframes overlayFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 /* ===== Card Clone ===== */
@@ -101,17 +105,35 @@
   box-shadow:
     0 12px 48px rgba(0, 0, 0, 0.12),
     0 0 0 1px rgba(255, 255, 255, 0.2);
-  animation: panelSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: left center;
+  animation: panelGenieIn 0.7s var(--ease-genie);
+  will-change: transform, opacity;
 }
 
-@keyframes panelSlideIn {
-  from {
+@keyframes panelGenieIn {
+  0% {
     opacity: 0;
-    transform: translateX(20px) scale(0.96);
+    transform: translateX(40px) scale(0.85);
+    filter: blur(4px);
   }
-  to {
+  25% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-4px) scale(1.015);
+    filter: blur(0);
+  }
+  75% {
+    opacity: 1;
+    transform: translateX(1px) scale(0.998);
+    filter: blur(0);
+  }
+  100% {
     opacity: 1;
     transform: translateX(0) scale(1);
+    filter: blur(0);
   }
 }
 
@@ -161,13 +183,21 @@
   justify-content: center;
   border-radius: 50%;
   color: var(--text-tertiary);
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background var(--duration-fast) var(--ease-smooth),
+              color var(--duration-fast) var(--ease-smooth),
+              transform var(--duration-fast) var(--ease-out-expo);
   margin-left: auto;
 }
 
 .modal-close:hover {
   background: rgba(0, 0, 0, 0.05);
   color: var(--text-primary);
+  transform: rotate(90deg);
+}
+
+.modal-close:active {
+  transform: rotate(90deg) scale(0.85);
+  transition-duration: var(--duration-instant);
 }
 
 .modal-body {
@@ -334,17 +364,31 @@
     width: auto !important;
     max-height: 70vh !important;
     border-radius: 20px;
-    animation: panelSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: bottom center;
+    animation: panelGenieUp 0.7s var(--ease-genie);
+    will-change: transform, opacity;
   }
 
-  @keyframes panelSlideUp {
-    from {
+  @keyframes panelGenieUp {
+    0% {
       opacity: 0;
-      transform: translateY(40px);
+      transform: translateY(60%) scale(0.88);
     }
-    to {
+    25% {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateY(10%) scale(0.97);
+    }
+    50% {
+      opacity: 1;
+      transform: translateY(-2%) scale(1.01);
+    }
+    75% {
+      opacity: 1;
+      transform: translateY(0.5%) scale(0.999);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
     }
   }
 

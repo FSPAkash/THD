@@ -4,6 +4,18 @@
   z-index: 50;
   background: transparent;
   padding: 20px 28px 30px 28px;
+  animation: filterBarEnter 1s var(--ease-out-expo) 0.2s both;
+}
+
+@keyframes filterBarEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .filter-bar-content {
@@ -88,7 +100,10 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color var(--duration-fast) var(--ease-smooth),
+              background var(--duration-normal) var(--ease-out-expo),
+              box-shadow var(--duration-normal) var(--ease-out-expo),
+              transform var(--duration-fast) var(--ease-out-expo);
   white-space: nowrap;
 }
 
@@ -96,9 +111,21 @@
   color: var(--text-primary);
 }
 
+.toggle-btn:active {
+  transform: scale(0.95);
+  transition-duration: var(--duration-instant);
+}
+
 .toggle-btn.active {
   background: rgba(238, 113, 37, 0.85);
   color: var(--white);
+  box-shadow: 0 2px 8px rgba(238, 113, 37, 0.3);
+  animation: toggleActivate var(--duration-normal) var(--ease-spring);
+}
+
+@keyframes toggleActivate {
+  0% { transform: scale(0.9); }
+  100% { transform: scale(1); }
 }
 
 /* Custom Select Wrapper */
@@ -144,7 +171,7 @@
 
 .custom-select-arrow {
   color: var(--text-tertiary);
-  transition: transform 0.2s ease;
+  transition: transform var(--duration-normal) var(--ease-out-expo);
   flex-shrink: 0;
 }
 
@@ -171,17 +198,17 @@
     0 0 16px rgba(238, 113, 37, 0.1);
   z-index: 100;
   padding: 6px;
-  animation: dropdownFadeIn 0.15s ease;
+  animation: dropdownFadeIn 0.5s var(--ease-out-expo);
 }
 
 @keyframes dropdownFadeIn {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-4px);
+    transform: translateX(-50%) translateY(-8px) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 }
 
@@ -192,7 +219,9 @@
   color: var(--text-primary);
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background var(--duration-fast) var(--ease-smooth),
+              color var(--duration-fast) var(--ease-smooth),
+              transform var(--duration-fast) var(--ease-out-expo);
   text-align: center;
   white-space: nowrap;
 }
@@ -200,6 +229,7 @@
 .custom-select-option:hover {
   background: rgba(238, 113, 37, 0.1);
   color: var(--orange-primary);
+  transform: translateX(2px);
 }
 
 .custom-select-option.selected {
@@ -266,11 +296,11 @@
 
 .filter-reset-btn svg {
   flex-shrink: 0;
-  transition: transform 0.3s ease;
+  transition: transform var(--duration-slow) var(--ease-out-expo);
 }
 
 .filter-reset-btn:hover svg {
-  transform: rotate(-45deg);
+  transform: rotate(-180deg);
 }
 
 /* Glass-style Tooltip for Filter Reset */
@@ -337,17 +367,17 @@
     0 4px 24px rgba(0, 0, 0, 0.12),
     0 0 16px rgba(238, 113, 37, 0.1);
   z-index: 150;
-  animation: filterConfirmFadeIn 0.15s ease;
+  animation: filterConfirmFadeIn 0.5s var(--ease-out-expo);
 }
 
 @keyframes filterConfirmFadeIn {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-4px);
+    transform: translateX(-50%) translateY(-8px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 }
 
@@ -451,7 +481,7 @@
     0 4px 24px rgba(0, 0, 0, 0.12),
     0 0 16px rgba(238, 113, 37, 0.1);
   z-index: 100;
-  animation: queryTooltipFadeIn 0.15s ease;
+  animation: queryTooltipFadeIn 0.5s var(--ease-out-expo);
   overflow-y: auto;
   max-height: calc(100vh - 200px);
   overscroll-behavior: contain;
@@ -460,11 +490,11 @@
 @keyframes queryTooltipFadeIn {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(-10px) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -583,7 +613,7 @@
   justify-content: center;
   z-index: 1000;
   padding: 24px;
-  animation: fadeInBackdrop 0.2s ease;
+  animation: fadeInBackdrop 0.5s var(--ease-smooth);
 }
 
 @keyframes fadeInBackdrop {
@@ -605,18 +635,37 @@
   box-shadow:
     0 12px 48px rgba(0, 0, 0, 0.12),
     0 0 0 1px rgba(255, 255, 255, 0.2);
-  animation: slideUpModal 0.3s ease;
+  transform-origin: top center;
+  animation: modalGenieExpand 0.6s var(--ease-genie);
+  will-change: transform, opacity;
   overflow: hidden;
 }
 
-@keyframes slideUpModal {
-  from {
+@keyframes modalGenieExpand {
+  0% {
     opacity: 0;
-    transform: translateY(20px) scale(0.98);
+    transform: scale(0.85) translateY(-16px);
+    filter: blur(3px);
   }
-  to {
+  25% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(0.95) translateY(-4px);
+    filter: blur(0);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.01) translateY(1px);
+    filter: blur(0);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(0.999) translateY(-0.3px);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
   }
 }
 
