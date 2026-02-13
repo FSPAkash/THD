@@ -883,25 +883,30 @@ def test_email():
         })
 
 
+import requests as gh_requests
+import base64
+from io import BytesIO
+
+GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN', '')
+GITHUB_REPO = os.environ.get('GITHUB_REPO', '')
+GITHUB_FEEDBACK_PATH = os.environ.get('GITHUB_FEEDBACK_PATH', 'backend/data/feedback.xlsx')
+GITHUB_BRANCH = os.environ.get('GITHUB_BRANCH', 'main')
+USE_GITHUB_FEEDBACK = bool(GITHUB_TOKEN and GITHUB_REPO)
+
+print(f"Feedback storage: {'GitHub (' + GITHUB_REPO + ')' if USE_GITHUB_FEEDBACK else 'Local file'}")
+
+
 def _save_feedback_github(new_row):
     """Save feedback by committing updated Excel to GitHub repo."""
-    import requests as gh_requests
-    import base64
-    from io import BytesIO
-
-    token = os.environ['GITHUB_TOKEN']
-    repo = os.environ.get('GITHUB_REPO')  # e.g. "AkashPatil/THD-Dashboard"
-    path = os.environ.get('GITHUB_FEEDBACK_PATH', 'backend/data/feedback.xlsx')
-    branch = os.environ.get('GITHUB_BRANCH', 'main')
-
     headers = {
-        'Authorization': f'token {token}',
+        'Authorization': f'token {GITHUB_TOKEN}',
         'Accept': 'application/vnd.github.v3+json'
     }
-    api_url = f'https://api.github.com/repos/{repo}/contents/{path}'
+    api_url = f'https://api.github.com/repos/{GITHUB_REPO}/contents/{GITHUB_FEEDBACK_PATH}'
 
-    # Try to fetch existing file from GitHub
-    resp = gh_requests.get(api_url, headers=headers, params={'ref': branch})
+    # Fetch existing file from GitHub
+    print(f"[Feedback] Fetching {GITHUB_FEEDBACK_PATH} from {GITHUB_REPO}...")
+    resp = gh_requests.get(api_url, headers=headers, params={'ref': GITHUB_BRANCH})
     sha = None
 
     if resp.status_code == 200:
@@ -910,8 +915,12 @@ def _save_feedback_github(new_row):
         content_bytes = base64.b64decode(file_data['content'])
         existing_df = pd.read_excel(BytesIO(content_bytes))
         df = pd.concat([existing_df, pd.DataFrame([new_row])], ignore_index=True)
-    else:
+        print(f"[Feedback] Existing file found, {len(existing_df)} rows -> {len(df)} rows")
+    elif resp.status_code == 404:
         df = pd.DataFrame([new_row])
+        print("[Feedback] No existing file, creating new")
+    else:
+        raise Exception(f'GitHub GET failed: {resp.status_code} - {resp.text}')
 
     # Write DataFrame to bytes
     output = BytesIO()
@@ -922,14 +931,16 @@ def _save_feedback_github(new_row):
     commit_data = {
         'message': f'feedback: {new_row["User"]} - {new_row["Topic"]}',
         'content': encoded,
-        'branch': branch,
+        'branch': GITHUB_BRANCH,
     }
     if sha:
         commit_data['sha'] = sha
 
+    print(f"[Feedback] Committing to {GITHUB_REPO}/{GITHUB_FEEDBACK_PATH}...")
     put_resp = gh_requests.put(api_url, headers=headers, json=commit_data)
     if put_resp.status_code not in (200, 201):
-        raise Exception(f'GitHub API error: {put_resp.status_code} - {put_resp.text}')
+        raise Exception(f'GitHub PUT failed: {put_resp.status_code} - {put_resp.text}')
+    print(f"[Feedback] Committed successfully")
 
 
 def _save_feedback_local(new_row):
@@ -943,6 +954,7 @@ def _save_feedback_local(new_row):
         df = pd.DataFrame([new_row])
 
     df.to_excel(feedback_file, index=False)
+    print(f"[Feedback] Saved locally to {feedback_file}")
 
 
 @app.route('/api/feedback', methods=['POST'])
@@ -970,9 +982,11 @@ def submit_feedback():
             'Feedback': feedback.strip()
         }
 
-        if os.environ.get('GITHUB_TOKEN') and os.environ.get('GITHUB_REPO'):
+        if USE_GITHUB_FEEDBACK:
+            print(f"[Feedback] Using GitHub storage for user={user}")
             _save_feedback_github(new_row)
         else:
+            print(f"[Feedback] Using local storage for user={user}")
             _save_feedback_local(new_row)
 
         return jsonify({'success': True, 'message': 'Feedback saved'})
