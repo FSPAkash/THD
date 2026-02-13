@@ -72,7 +72,7 @@
   z-index: 91;
   animation: feedbackPopupIn 0.15s ease;
   overflow-y: auto;
-  max-height: calc(100vh - 120px);
+  max-height: calc(100vh - 180px);
   overscroll-behavior: contain;
 }
 
