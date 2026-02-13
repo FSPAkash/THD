@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import './FilterBar.css';
 
 function CustomSelect({ value, options, onChange, placeholder }) {
@@ -345,8 +346,8 @@ ORDER BY d.date_key DESC;`;
         )}
       </div>
 
-      {/* Expanded Query Modal - rendered outside filter-bar-content to avoid flex interference */}
-      {showQueryTooltip && queryExpanded && (
+      {/* Expanded Query Modal - portaled to body to escape filter-bar stacking context */}
+      {showQueryTooltip && queryExpanded && ReactDOM.createPortal(
         <div className="query-expanded-backdrop" onClick={() => { setQueryExpanded(false); setShowQueryTooltip(false); }}>
           <div className="query-expanded-modal" onClick={(e) => e.stopPropagation()}>
             <div className="query-expanded-header">
@@ -389,7 +390,8 @@ ORDER BY d.date_key DESC;`;
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 /* Filter Bar Container - Fully Transparent */
 .filter-bar {
   position: relative;
+  z-index: 50;
   background: transparent;
   padding: 20px 28px 30px 28px;
 }
@@ -441,9 +442,9 @@
   top: calc(100% + 10px);
   right: -8px;
   width: 420px;
-  background: rgba(238, 113, 37,0.075);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 12px;
   box-shadow:
@@ -570,8 +571,11 @@
 /* Expanded Query Modal - full-screen centered overlay */
 .query-expanded-backdrop {
   position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  top: 80px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: flex;
@@ -588,14 +592,19 @@
 }
 
 .query-expanded-modal {
-  background: var(--white);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(40px) saturate(1.4);
+  -webkit-backdrop-filter: blur(40px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: 20px;
   width: 100%;
   max-width: 680px;
-  max-height: 80vh;
+  max-height: calc(100vh - 120px);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.2);
   animation: slideUpModal 0.3s ease;
   overflow: hidden;
 }
