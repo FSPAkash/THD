@@ -18,7 +18,8 @@ from utils import (
     get_launch_date,
     get_stakeholders,
     get_daily_comparison_data,
-    parse_event_tracker
+    parse_event_tracker,
+    detect_anomalies
 )
 
 try:
@@ -455,6 +456,53 @@ def get_events():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/anomalies', methods=['GET'])
+@jwt_required()
+def get_anomalies():
+    """Detect anomalies in daily KPI data using rolling Z-score."""
+    if cached_data['daily_data'] is None:
+        return jsonify({'error': 'No data available. Please upload data first.'}), 404
+
+    use_case = request.args.get('use_case')
+    kpi = request.args.get('kpi', 'visits')
+    period = request.args.get('period', 'all')
+    business_segment = request.args.get('business_segment')
+    device_type = request.args.get('device_type')
+    page_type = request.args.get('page_type')
+
+    try:
+        launch_date = None
+        if use_case:
+            launch_date = get_launch_date(cached_data['feature_config'], use_case)
+
+        period_days = None if period == 'all' else period
+
+        # Load events for T1 cross-referencing
+        events = parse_event_tracker()
+
+        anomalies = detect_anomalies(
+            cached_data['daily_data'],
+            use_case=use_case,
+            kpi=kpi,
+            launch_date=launch_date,
+            period_days=period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type,
+            events=events
+        )
+
+        return jsonify({
+            'anomalies': anomalies,
+            'kpi': kpi,
+            'count': len(anomalies)
+        })
+    except Exception as e:
+        print(f"Anomaly Detection Error: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/data/status', methods=['GET'])
 @jwt_required()
 def data_status():
@@ -590,12 +638,27 @@ def preview_report():
             page_type=page_type
         )
 
+        # Detect anomalies for the selected KPI
+        pdf_events = parse_event_tracker()
+        pdf_anomalies = detect_anomalies(
+            cached_data['daily_data'],
+            use_case=use_case,
+            kpi=selected_kpi,
+            launch_date=launch_date,
+            period_days=period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type,
+            events=pdf_events
+        )
+
         pdf_data = generate_pdf(
             analysis, use_case, period_label, launch_date, segment_label,
             chart_data=chart_data,
             chart_tags=chart_tags,
             chart_display=chart_display,
-            selected_kpi=selected_kpi
+            selected_kpi=selected_kpi,
+            anomalies=pdf_anomalies
         )
 
         return Response(
@@ -702,13 +765,28 @@ def send_report():
             page_type=page_type
         )
 
+        # Detect anomalies for the selected KPI
+        send_events = parse_event_tracker()
+        send_anomalies = detect_anomalies(
+            cached_data['daily_data'],
+            use_case=use_case,
+            kpi=selected_kpi,
+            launch_date=launch_date,
+            period_days=period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type,
+            events=send_events
+        )
+
         print(f"Generating PDF for {use_case}...")
         pdf_data = generate_pdf(
             analysis, use_case, period_label, launch_date, segment_label,
             chart_data=chart_data,
             chart_tags=chart_tags,
             chart_display=chart_display,
-            selected_kpi=selected_kpi
+            selected_kpi=selected_kpi,
+            anomalies=send_anomalies
         )
         print(f"PDF generated, size: {len(pdf_data)} bytes")
 
@@ -812,12 +890,27 @@ def create_report_draft():
             page_type=page_type
         )
 
+        # Detect anomalies for the selected KPI
+        draft_events = parse_event_tracker()
+        draft_anomalies = detect_anomalies(
+            cached_data['daily_data'],
+            use_case=use_case,
+            kpi=selected_kpi,
+            launch_date=launch_date,
+            period_days=period_days,
+            business_segment=business_segment,
+            device_type=device_type,
+            page_type=page_type,
+            events=draft_events
+        )
+
         pdf_data = generate_pdf(
             analysis, use_case, period_label, launch_date, segment_label,
             chart_data=chart_data,
             chart_tags=chart_tags,
             chart_display=chart_display,
-            selected_kpi=selected_kpi
+            selected_kpi=selected_kpi,
+            anomalies=draft_anomalies
         )
 
         result = create_draft_email(valid_recipients, use_case, period_label, pdf_data)

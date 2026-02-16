@@ -1131,6 +1131,230 @@
 }
 
 /* ==================== */
+/* Anomaly Markers      */
+/* ==================== */
+
+.anomaly-marker {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.anomaly-dot-wrapper {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.anomaly-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 2;
+}
+
+.anomaly-marker.spike .anomaly-dot {
+  background: #FF3B30;
+}
+
+.anomaly-marker.drop .anomaly-dot {
+  background: #007AFF;
+}
+
+.anomaly-marker.explained .anomaly-dot {
+  background: #8E8E93;
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+/* LY series markers: hollow dot with colored border */
+.anomaly-marker.ly-series.spike .anomaly-dot {
+  background: white;
+  border-color: #FF3B30;
+}
+
+.anomaly-marker.ly-series.drop .anomaly-dot {
+  background: white;
+  border-color: #007AFF;
+}
+
+.anomaly-marker.ly-series.explained .anomaly-dot {
+  background: white;
+  border-color: #8E8E93;
+}
+
+.anomaly-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  z-index: 1;
+  animation: anomalyPulse 2s ease-out infinite;
+}
+
+.anomaly-marker.spike .anomaly-pulse {
+  background: rgba(255, 59, 48, 0.4);
+}
+
+.anomaly-marker.drop .anomaly-pulse {
+  background: rgba(0, 122, 255, 0.4);
+}
+
+@keyframes anomalyPulse {
+  0% {
+    width: 10px;
+    height: 10px;
+    opacity: 0.6;
+  }
+  100% {
+    width: 24px;
+    height: 24px;
+    opacity: 0;
+  }
+}
+
+.anomaly-line {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 100%;
+  opacity: 0.3;
+}
+
+.anomaly-marker.spike .anomaly-line {
+  background: repeating-linear-gradient(
+    to bottom,
+    #FF3B30 0px,
+    #FF3B30 3px,
+    transparent 3px,
+    transparent 6px
+  );
+}
+
+.anomaly-marker.drop .anomaly-line {
+  background: repeating-linear-gradient(
+    to bottom,
+    #007AFF 0px,
+    #007AFF 3px,
+    transparent 3px,
+    transparent 6px
+  );
+}
+
+.anomaly-marker.explained .anomaly-line {
+  background: repeating-linear-gradient(
+    to bottom,
+    #8E8E93 0px,
+    #8E8E93 3px,
+    transparent 3px,
+    transparent 6px
+  );
+  opacity: 0.2;
+}
+
+/* Anomaly Dot Hover Tooltip */
+.anomaly-hover-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  transform: translateX(-50%) translateY(4px);
+  z-index: 100;
+}
+
+.anomaly-hover-tooltip.spike {
+  border-left: 3px solid #FF3B30;
+}
+
+.anomaly-hover-tooltip.drop {
+  border-left: 3px solid #007AFF;
+}
+
+.anomaly-hover-tooltip.explained {
+  border-left: 3px solid #8E8E93;
+}
+
+.anomaly-dot-wrapper:hover .anomaly-hover-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.anomaly-dot-wrapper:hover .anomaly-dot {
+  transform: scale(1.3);
+  transition: transform 0.15s ease;
+}
+
+.anomaly-hover-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.anomaly-hover-badge.spike {
+  color: #FF3B30;
+}
+
+.anomaly-hover-badge.drop {
+  color: #007AFF;
+}
+
+.anomaly-hover-badge.explained {
+  color: #8E8E93;
+}
+
+.anomaly-hover-event {
+  font-size: 10px;
+  font-weight: 600;
+  color: #636366;
+  line-height: 1.3;
+}
+
+.anomaly-hover-reason {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.anomaly-hover-series {
+  font-size: 9px;
+  font-weight: 600;
+  color: #86868b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+/* ==================== */
 /* Beta Restricted      */
 /* ==================== */
 

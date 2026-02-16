@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Header from './Header';
 import FilterBar from './FilterBar';
 import MetricCard from './MetricCard';
@@ -36,6 +36,12 @@ function Dashboard() {
   const [showSuggestedEvents, setShowSuggestedEvents] = useState(false);
   const [eventData, setEventData] = useState([]);
   const [showTagsResetConfirm, setShowTagsResetConfirm] = useState(false);
+  const [showAnomalies, setShowAnomalies] = useState(false);
+  const [anomalyData, setAnomalyData] = useState([]);
+  const [showAnomalyInfo, setShowAnomalyInfo] = useState(false);
+  const [anomalyInfoFlip, setAnomalyInfoFlip] = useState(false);
+  const anomalyInfoTimer = useRef(null);
+  const anomalyBtnRef = useRef(null);
 
   // Segment filter states
   const [businessSegment, setBusinessSegment] = useState('All');
@@ -161,12 +167,32 @@ function Dashboard() {
     }
   }, [hasData, selectedUseCase, selectedPeriod, businessSegment, deviceType, pageType, fetchAnalysisData, fetchDailyData]);
 
+  const fetchAnomalyData = useCallback(async () => {
+    if (!hasData || !selectedUseCase) return;
+    try {
+      const params = {
+        kpi: selectedKPI,
+        use_case: selectedUseCase,
+        period: selectedPeriod,
+        business_segment: businessSegment !== 'All' ? businessSegment : undefined,
+        device_type: deviceType !== 'All' ? deviceType : undefined,
+        page_type: pageType !== 'All' ? pageType : undefined
+      };
+      const response = await api.get('/api/anomalies', { params });
+      setAnomalyData(response.data.anomalies || []);
+    } catch (err) {
+      console.error('Error fetching anomalies:', err);
+      setAnomalyData([]);
+    }
+  }, [hasData, selectedUseCase, selectedKPI, selectedPeriod, businessSegment, deviceType, pageType]);
+
   useEffect(() => {
     if (hasData && selectedUseCase) {
       fetchDailyData();
       fetchComparisonData();
+      fetchAnomalyData();
     }
-  }, [selectedKPI, fetchDailyData, fetchComparisonData, hasData, selectedUseCase]);
+  }, [selectedKPI, fetchDailyData, fetchComparisonData, fetchAnomalyData, hasData, selectedUseCase]);
 
   const getMetricData = (kpi) => {
     const metric = analysisData.find(d => d.kpi === kpi.toUpperCase());
@@ -355,6 +381,110 @@ function Dashboard() {
                   Auto-detected events from your data that may impact KPI trends
                 </span>
               </button>
+              <button
+                ref={anomalyBtnRef}
+                className={`suggested-events-btn anomaly-btn ${showAnomalies ? 'active' : ''}`}
+                onClick={() => setShowAnomalies(!showAnomalies)}
+              >
+                <svg className="suggested-events-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Anomalies
+                {(() => {
+                  const visible = anomalyData.filter(a => !a.explained && (chartDisplayMode === 'both' || a.series === chartDisplayMode));
+                  return visible.length > 0 ? <span className="anomaly-count">{visible.length}</span> : null;
+                })()}
+                <span
+                  className="anomaly-info-btn"
+                  onMouseEnter={(e) => {
+                    e.stopPropagation();
+                    clearTimeout(anomalyInfoTimer.current);
+                    if (anomalyBtnRef.current) {
+                      const rect = anomalyBtnRef.current.getBoundingClientRect();
+                      const spaceBelow = window.innerHeight - rect.bottom - 20;
+                      setAnomalyInfoFlip(spaceBelow < 400);
+                    }
+                    setShowAnomalyInfo(true);
+                  }}
+                  onMouseLeave={() => {
+                    anomalyInfoTimer.current = setTimeout(() => setShowAnomalyInfo(false), 200);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  i
+                </span>
+                <span className="suggested-events-tooltip">
+                  Statistically significant spikes or drops detected in the data
+                </span>
+                {showAnomalyInfo && (
+                  <div
+                    className={`anomaly-info-modal ${anomalyInfoFlip ? 'flip-above' : ''}`}
+                    onMouseEnter={() => clearTimeout(anomalyInfoTimer.current)}
+                    onMouseLeave={() => {
+                      anomalyInfoTimer.current = setTimeout(() => setShowAnomalyInfo(false), 200);
+                    }}
+                  >
+                    <div className="anomaly-info-header">
+                      <span className="anomaly-info-title">Anomaly Detection</span>
+                    </div>
+                    <div className="anomaly-info-body">
+                      <div className="anomaly-info-section">
+                        <h4>How it works</h4>
+                        <p>
+                          Each data point is compared against its <strong>trailing 7-day rolling average</strong>.
+                          A <strong>Z-score</strong> measures how many standard deviations the current value is from that average.
+                          Points with |Z| &ge; 2.0 are flagged as anomalies.
+                        </p>
+                      </div>
+                      <div className="anomaly-info-section">
+                        <h4>The math</h4>
+                        <div className="anomaly-info-formula">
+                          <code>Z = (x - &mu;) / &sigma;</code>
+                        </div>
+                        <p className="anomaly-info-legend">
+                          <span><strong>x</strong> = today's value</span>
+                          <span><strong>&mu;</strong> = 7-day rolling mean</span>
+                          <span><strong>&sigma;</strong> = 7-day rolling std dev</span>
+                        </p>
+                      </div>
+                      <div className="anomaly-info-section">
+                        <h4>Example</h4>
+                        <div className="anomaly-info-example">
+                          <div className="anomaly-info-example-row">
+                            <span className="anomaly-info-example-label">Last 7 days</span>
+                            <span className="anomaly-info-example-value">1200, 1180, 1210, 1195, 1220, 1190, 1205</span>
+                          </div>
+                          <div className="anomaly-info-example-row">
+                            <span className="anomaly-info-example-label">Mean (&mu;)</span>
+                            <span className="anomaly-info-example-value">1,200</span>
+                          </div>
+                          <div className="anomaly-info-example-row">
+                            <span className="anomaly-info-example-label">Std Dev (&sigma;)</span>
+                            <span className="anomaly-info-example-value">13.1</span>
+                          </div>
+                          <div className="anomaly-info-example-row highlight-spike">
+                            <span className="anomaly-info-example-label">Today (x)</span>
+                            <span className="anomaly-info-example-value">1,248</span>
+                          </div>
+                          <div className="anomaly-info-example-row highlight-spike">
+                            <span className="anomaly-info-example-label">Z-score</span>
+                            <span className="anomaly-info-example-value">(1248 - 1200) / 13.1 = <strong>3.66</strong></span>
+                          </div>
+                          <div className="anomaly-info-example-verdict spike">Spike detected (Z &ge; 2.0)</div>
+                        </div>
+                      </div>
+                      <div className="anomaly-info-section">
+                        <h4>Additional context</h4>
+                        <ul>
+                          <li>TY and LY series are analyzed independently</li>
+                          <li>Anomalies overlapping T1 events are marked as <strong>explained behavior</strong> instead</li>
+                          <li>Spikes (Z &gt; 0) appear in red, drops (Z &lt; 0) in blue</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </button>
               <div className="chart-display-toggle">
                 <button
                   className={`display-toggle-btn ${chartDisplayMode === 'both' ? 'active' : ''}`}
@@ -431,6 +561,8 @@ function Dashboard() {
               displayMode={chartDisplayMode}
               events={eventData}
               showSuggestedEvents={showSuggestedEvents}
+              anomalies={anomalyData}
+              showAnomalies={showAnomalies}
             />
           </div>
         </section>
@@ -510,6 +642,7 @@ function Dashboard() {
       )}
 
       <FeedbackButton useCase={selectedUseCase} />
+
     </div>
   );
 }

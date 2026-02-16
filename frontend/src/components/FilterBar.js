@@ -84,6 +84,9 @@ function FilterBar({
   const [showQueryTooltip, setShowQueryTooltip] = useState(false);
   const [queryExpanded, setQueryExpanded] = useState(false);
   const queryTooltipRef = useRef(null);
+  const queryBtnRef = useRef(null);
+  const queryPopupRef = useRef(null);
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, right: 0 });
 
   const dummySqlQuery = `SELECT
   d.date_key,
@@ -103,7 +106,10 @@ ORDER BY d.date_key DESC;`;
   // Close tooltip when clicking outside (only in non-expanded mode)
   useEffect(() => {
     function handleClickOutside(event) {
-      if (!queryExpanded && queryTooltipRef.current && !queryTooltipRef.current.contains(event.target)) {
+      if (!queryExpanded
+        && queryTooltipRef.current && !queryTooltipRef.current.contains(event.target)
+        && (!queryPopupRef.current || !queryPopupRef.current.contains(event.target))
+      ) {
         setShowQueryTooltip(false);
       }
     }
@@ -260,50 +266,22 @@ ORDER BY d.date_key DESC;`;
           <label className="filter-label">Query</label>
           <div className="filter-query-wrapper">
             <button
+              ref={queryBtnRef}
               className="toggle-btn query-info-btn"
               onClick={() => {
+                if (!showQueryTooltip && queryBtnRef.current) {
+                  const rect = queryBtnRef.current.getBoundingClientRect();
+                  setTooltipPos({
+                    top: rect.bottom + 10,
+                    right: window.innerWidth - rect.right - 8,
+                  });
+                }
                 setShowQueryTooltip(!showQueryTooltip);
                 setQueryExpanded(false);
               }}
             >
               i
             </button>
-            {showQueryTooltip && !queryExpanded && (
-              <div className="query-tooltip">
-                <div className="query-tooltip-header">
-                  <span className="query-tooltip-title">SQL Query</span>
-                </div>
-                <pre className="query-tooltip-code">{dummySqlQuery}</pre>
-                <div className="query-tooltip-footer">
-                  <button
-                    className="query-analyze-btn"
-                    onClick={() => setQueryExpanded(true)}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="15 3 21 3 21 9"></polyline>
-                      <polyline points="9 21 3 21 3 15"></polyline>
-                      <line x1="21" y1="3" x2="14" y2="10"></line>
-                      <line x1="3" y1="21" x2="10" y2="14"></line>
-                    </svg>
-                    Analyze Query
-                  </button>
-                  <button
-                    className="query-request-edit-btn"
-                    onClick={() => {
-                      setShowQueryTooltip(false);
-                      setQueryExpanded(false);
-                      if (onRequestQueryEdit) onRequestQueryEdit();
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                    Request Edit
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -345,6 +323,49 @@ ORDER BY d.date_key DESC;`;
           </div>
         )}
       </div>
+
+      {/* Query Tooltip - portaled to body so backdrop-filter works against the page */}
+      {showQueryTooltip && !queryExpanded && ReactDOM.createPortal(
+        <div
+          ref={queryPopupRef}
+          className="query-tooltip"
+          style={{ top: tooltipPos.top, right: tooltipPos.right }}
+        >
+          <div className="query-tooltip-header">
+            <span className="query-tooltip-title">SQL Query</span>
+          </div>
+          <pre className="query-tooltip-code">{dummySqlQuery}</pre>
+          <div className="query-tooltip-footer">
+            <button
+              className="query-analyze-btn"
+              onClick={() => setQueryExpanded(true)}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <polyline points="9 21 3 21 3 15"></polyline>
+                <line x1="21" y1="3" x2="14" y2="10"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
+              </svg>
+              Analyze Query
+            </button>
+            <button
+              className="query-request-edit-btn"
+              onClick={() => {
+                setShowQueryTooltip(false);
+                setQueryExpanded(false);
+                if (onRequestQueryEdit) onRequestQueryEdit();
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              Request Edit
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Expanded Query Modal - portaled to body to escape filter-bar stacking context */}
       {showQueryTooltip && queryExpanded && ReactDOM.createPortal(

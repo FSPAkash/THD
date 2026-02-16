@@ -95,7 +95,8 @@ def get_kpi_label(kpi):
 
 
 def generate_report_html(analysis_data, use_case, period_label, launch_date, segment_label=None,
-                         chart_data=None, chart_tags=None, chart_display='both', selected_kpi='visits'):
+                         chart_data=None, chart_tags=None, chart_display='both', selected_kpi='visits',
+                         anomalies=None):
     """Generate HTML for the PDF report with optional chart page."""
 
     # Base styles shared between pages
@@ -499,7 +500,7 @@ def generate_report_html(analysis_data, use_case, period_label, launch_date, seg
     # Generate SVG chart if data is available
     chart_svg = ''
     if chart_data and len(chart_data) > 0:
-        chart_svg = generate_line_chart_svg(chart_data, selected_kpi, chart_display, chart_tags)
+        chart_svg = generate_line_chart_svg(chart_data, selected_kpi, chart_display, chart_tags, anomalies)
 
     # Process tags for display
     processed_tags = []
@@ -697,8 +698,8 @@ def generate_report_html(analysis_data, use_case, period_label, launch_date, seg
     return html
 
 
-def generate_line_chart_svg(data, kpi, display_mode='both', chart_tags=None):
-    """Generate an SVG line chart from the data with optional tag markers."""
+def generate_line_chart_svg(data, kpi, display_mode='both', chart_tags=None, anomalies=None):
+    """Generate an SVG line chart from the data with optional tag and anomaly markers."""
     if not data:
         return ''
 
@@ -831,6 +832,73 @@ def generate_line_chart_svg(data, kpi, display_mode='both', chart_tags=None):
                     svg_parts.append(f'<text x="{x + 6}" y="{padding_top + 12}" font-size="8" fill="{tag_color}" font-weight="600">{display_name}</text>')
         svg_parts.append('</g>')
 
+    # Draw anomaly markers if provided, filtered by display_mode
+    if anomalies and len(anomalies) > 0:
+        # Filter anomalies based on display mode
+        filtered_anomalies = [
+            a for a in anomalies
+            if display_mode == 'both'
+            or a.get('series', 'ty') == display_mode
+        ]
+
+        if filtered_anomalies:
+            svg_parts.append('<g class="anomaly-markers">')
+            for anom in filtered_anomalies:
+                anom_date = anom.get('date', '')
+                anom_direction = anom.get('direction', 'spike')
+                anom_reason = anom.get('reason', '')
+                is_explained = anom.get('explained', False)
+                explained_by = anom.get('explained_by', '')
+                anom_series = anom.get('series', 'ty')
+
+                # Find the index of this date in the data
+                anom_index = -1
+                for i, d in enumerate(data):
+                    if d.get('date') == anom_date:
+                        anom_index = i
+                        break
+
+                if anom_index >= 0 and len(dates) > 1:
+                    x = padding_left + (anom_index / (len(dates) - 1)) * chart_width
+
+                    if is_explained:
+                        color = '#8E8E93'
+                        line_opacity = '0.2'
+                    else:
+                        color = '#FF3B30' if anom_direction == 'spike' else '#007AFF'
+                        line_opacity = '0.4'
+
+                    # Dashed vertical line
+                    svg_parts.append(
+                        f'<line x1="{x}" y1="{padding_top}" x2="{x}" y2="{height - padding_bottom}" '
+                        f'stroke="{color}" stroke-width="1" stroke-dasharray="3 3" opacity="{line_opacity}"/>'
+                    )
+
+                    # Diamond marker at top - hollow for LY, filled for TY
+                    diamond_y = padding_top + 6
+                    if anom_series == 'ly':
+                        svg_parts.append(
+                            f'<polygon points="{x},{diamond_y - 5} {x + 4},{diamond_y} {x},{diamond_y + 5} {x - 4},{diamond_y}" '
+                            f'fill="white" stroke="{color}" stroke-width="1.5"/>'
+                        )
+                    else:
+                        svg_parts.append(
+                            f'<polygon points="{x},{diamond_y - 5} {x + 4},{diamond_y} {x},{diamond_y + 5} {x - 4},{diamond_y}" '
+                            f'fill="{color}" stroke="white" stroke-width="1"/>'
+                        )
+
+                    # Label
+                    if is_explained and explained_by:
+                        display_label = explained_by[:18] + '...' if len(explained_by) > 18 else explained_by
+                        display_label = f"[{display_label}]"
+                    else:
+                        display_label = anom_reason[:20] + '...' if len(anom_reason) > 20 else anom_reason
+                    svg_parts.append(
+                        f'<text x="{x + 6}" y="{diamond_y + 3}" font-size="7" fill="{color}" '
+                        f'font-weight="600">{display_label}</text>'
+                    )
+            svg_parts.append('</g>')
+
     svg_parts.append('</svg>')
 
     return '\n'.join(svg_parts)
@@ -857,12 +925,14 @@ def format_chart_value(val, kpi):
 
 
 def generate_pdf(analysis_data, use_case, period_label, launch_date, segment_label=None,
-                 chart_data=None, chart_tags=None, chart_display='both', selected_kpi='visits'):
+                 chart_data=None, chart_tags=None, chart_display='both', selected_kpi='visits',
+                 anomalies=None):
     """Generate PDF from analysis data."""
     html_content = generate_report_html(
         analysis_data, use_case, period_label, launch_date, segment_label,
         chart_data=chart_data, chart_tags=chart_tags,
-        chart_display=chart_display, selected_kpi=selected_kpi
+        chart_display=chart_display, selected_kpi=selected_kpi,
+        anomalies=anomalies
     )
 
     # PDF options for landscape A4

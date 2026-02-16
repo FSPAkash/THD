@@ -674,6 +674,138 @@ def parse_event_tracker(file_path=None):
         return []
 
 
+def detect_anomalies(daily_data, use_case=None, kpi=None, launch_date=None, period_days=None,
+                     business_segment=None, device_type=None, page_type=None,
+                     z_threshold=2.0, window_size=7, events=None):
+    """
+    Detect anomalies in daily KPI data using a rolling Z-score method.
+
+    Runs detection on both TY and LY series independently. Each anomaly is
+    tagged with series='ty' or series='ly' so the frontend can filter based
+    on the active display mode (TY, LY, or Both).
+
+    Anomalies that fall within a T1 event date range are tagged as 'explained'
+    rather than true anomalies, with the event name as the explanation.
+
+    Returns a list of anomaly objects:
+        { date, date_ly, kpi, value, expected, z_score, direction, reason,
+          explained, explained_by, series }
+    """
+    comparison_data = get_daily_comparison_data(
+        daily_data,
+        use_case=use_case,
+        kpi=kpi,
+        launch_date=launch_date,
+        period_days=period_days,
+        business_segment=business_segment,
+        device_type=device_type,
+        page_type=page_type
+    )
+
+    if not comparison_data or len(comparison_data) < window_size + 1:
+        return []
+
+    ty_key = f"{kpi}_ty"
+    ly_key = f"{kpi}_ly"
+
+    # Build T1 event lookup for explained-behavior tagging
+    t1_events = []
+    if events:
+        for ev in events:
+            if ev.get('tier') == 1:
+                try:
+                    start = datetime.strptime(ev['startDate'], '%Y-%m-%d').date()
+                    end = datetime.strptime(ev['endDate'], '%Y-%m-%d').date()
+                    t1_events.append({'label': ev.get('label', ''), 'start': start, 'end': end})
+                except (ValueError, KeyError):
+                    continue
+
+    anomalies = []
+
+    # Detect anomalies for each series (TY and LY)
+    series_configs = [
+        {'key': ty_key, 'series': 'ty', 'label': 'TY'},
+        {'key': ly_key, 'series': 'ly', 'label': 'LY'},
+    ]
+
+    for config in series_configs:
+        values = []
+        for d in comparison_data:
+            val = d.get(config['key'])
+            values.append(float(val) if val is not None else None)
+
+        for i in range(window_size, len(values)):
+            current = values[i]
+            if current is None:
+                continue
+
+            # Build rolling window from preceding days
+            window_vals = [v for v in values[max(0, i - window_size):i] if v is not None]
+            if len(window_vals) < 3:
+                continue
+
+            mean = sum(window_vals) / len(window_vals)
+            variance = sum((v - mean) ** 2 for v in window_vals) / len(window_vals)
+            std = variance ** 0.5
+
+            if std == 0:
+                continue
+
+            z_score = (current - mean) / std
+
+            if abs(z_score) >= z_threshold:
+                direction = 'spike' if z_score > 0 else 'drop'
+                data_point = comparison_data[i]
+
+                # Build reason
+                pct_change = ((current - mean) / mean * 100) if mean != 0 else 0
+                reason = f"{config['label']}: {abs(pct_change):.1f}% {direction} vs trailing {window_size}-day avg"
+
+                # For TY anomalies, add LY divergence context
+                if config['series'] == 'ty':
+                    ly_val = data_point.get(ly_key)
+                    if ly_val is not None and ly_val != 0:
+                        yoy_change = ((current - float(ly_val)) / float(ly_val)) * 100
+                        if abs(yoy_change) > 20:
+                            yoy_dir = 'above' if yoy_change > 0 else 'below'
+                            reason += f" ({abs(yoy_change):.0f}% {yoy_dir} LY)"
+
+                # Check if this date falls within a T1 event range
+                explained = False
+                explained_by = None
+                # Use TY date for TY anomalies, LY date for LY anomalies
+                date_str = data_point.get('date') if config['series'] == 'ty' else data_point.get('date_ly')
+                if date_str and t1_events:
+                    try:
+                        anomaly_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                        for t1 in t1_events:
+                            if t1['start'] <= anomaly_date <= t1['end']:
+                                explained = True
+                                explained_by = t1['label']
+                                break
+                    except ValueError:
+                        pass
+
+                anomalies.append({
+                    'date': data_point.get('date'),
+                    'date_ly': data_point.get('date_ly'),
+                    'kpi': kpi,
+                    'series': config['series'],
+                    'value': round(current, 4),
+                    'expected': round(mean, 4),
+                    'z_score': round(z_score, 2),
+                    'direction': direction,
+                    'reason': reason,
+                    'explained': explained,
+                    'explained_by': explained_by
+                })
+
+    # Sort all anomalies by date for consistent ordering
+    anomalies.sort(key=lambda a: a.get('date') or '')
+
+    return anomalies
+
+
 def get_stakeholders(feature_config, use_case):
     """Get stakeholder emails for a specific use case."""
     config = feature_config[feature_config['use_case'] == use_case]

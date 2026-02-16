@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -27,7 +27,7 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, chartTags, onTagsChange, displayMode = 'both', events = [], showSuggestedEvents = false }) {
+function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, chartTags, onTagsChange, displayMode = 'both', events = [], showSuggestedEvents = false, anomalies = [], showAnomalies = false }) {
   const { isBetaMode } = useAuth();
   const isBeta = isBetaMode();
   const chartContainerRef = useRef(null);
@@ -221,6 +221,18 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     if (!chartData || chartData.length === 0 || !dateStr) return -1;
     return chartData.findIndex(d => d.date === dateStr);
   }, [chartData]);
+
+  const filteredAnomalies = useMemo(() => {
+    if (!anomalies || anomalies.length === 0) return [];
+    if (displayMode === 'ty') return anomalies.filter(a => a.series === 'ty');
+    if (displayMode === 'ly') return anomalies.filter(a => a.series === 'ly');
+    return anomalies; // 'both' shows all
+  }, [anomalies, displayMode]);
+
+  const getAnomaliesForDate = useCallback((dateStr) => {
+    if (!showAnomalies || filteredAnomalies.length === 0) return [];
+    return filteredAnomalies.filter(a => a.date === dateStr);
+  }, [showAnomalies, filteredAnomalies]);
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -962,6 +974,56 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
     );
   };
 
+  const renderAnomalyMarkers = () => {
+    if (!showAnomalies || filteredAnomalies.length === 0) return null;
+
+    const currentWidth = containerWidth || (chartContainerRef.current?.offsetWidth || 0);
+    if (currentWidth === 0 || !chartData || chartData.length === 0) return null;
+
+    return filteredAnomalies.map((anomaly, idx) => {
+      // Use displayDate logic: LY anomalies use date_ly for positioning when in LY mode
+      const matchDate = (anomaly.series === 'ly' && displayMode === 'ly')
+        ? anomaly.date_ly
+        : anomaly.date;
+      const dateIndex = chartData.findIndex(d => d.displayDate === matchDate);
+      if (dateIndex === -1) return null;
+
+      const xPos = getXPositionForIndex(dateIndex);
+      if (xPos === 0 && dateIndex !== 0) return null;
+
+      const isSpike = anomaly.direction === 'spike';
+      const isExplained = anomaly.explained;
+      const isLY = anomaly.series === 'ly';
+      const markerClass = isExplained ? 'explained' : (isSpike ? 'spike' : 'drop');
+
+      const tooltipLabel = isExplained
+        ? 'Explained Behavior'
+        : `${isSpike ? '\u2191' : '\u2193'} Anomaly`;
+
+      return (
+        <div
+          key={`anomaly-${anomaly.series}-${idx}`}
+          className={`anomaly-marker ${markerClass} ${isLY ? 'ly-series' : 'ty-series'}`}
+          style={{ left: `${xPos}px` }}
+        >
+          <div className="anomaly-dot-wrapper">
+            <div className="anomaly-dot"></div>
+            {!isExplained && <div className="anomaly-pulse"></div>}
+            <div className={`anomaly-hover-tooltip ${markerClass}`}>
+              <span className={`anomaly-hover-badge ${markerClass}`}>{tooltipLabel}</span>
+              {isExplained && anomaly.explained_by && (
+                <span className="anomaly-hover-event">Due to: {anomaly.explained_by}</span>
+              )}
+              <span className="anomaly-hover-reason">{anomaly.reason}</span>
+              {isLY && <span className="anomaly-hover-series">Last Year</span>}
+            </div>
+          </div>
+          <div className="anomaly-line"></div>
+        </div>
+      );
+    });
+  };
+
   const commonProps = {
     data: chartData,
     margin: CHART_MARGINS
@@ -1317,6 +1379,7 @@ function KPIChart({ data, kpi, chartType, format, launchDate, comparisonData, ch
           style={{ height: `${PLOT_AREA_HEIGHT}px` }}
         >
           {renderEventSpans()}
+          {renderAnomalyMarkers()}
         </div>
 
         {isEditingActive && (

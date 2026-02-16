@@ -211,7 +211,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  height: 34px;
+  padding: 0 14px;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-tertiary);
@@ -288,11 +289,246 @@
   visibility: visible;
 }
 
+/* Anomaly Button Variant */
+.suggested-events-btn.anomaly-btn.active {
+  background: rgba(255, 59, 48, 0.1);
+  color: #FF3B30;
+  border-color: rgba(255, 59, 48, 0.3);
+}
+
+.anomaly-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: #FF3B30;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 9px;
+  margin-left: 2px;
+}
+
+.suggested-events-btn.anomaly-btn:not(.active) .anomaly-count {
+  background: var(--text-tertiary);
+}
+
+/* Anomaly Info Button (inside anomaly button) */
+.anomaly-info-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(238, 113, 37, 0.12);
+  color: rgba(238, 113, 37, 0.7);
+  border: 1px solid rgba(238, 113, 37, 0.2);
+  font-size: 10px;
+  font-weight: 700;
+  font-style: italic;
+  font-family: Georgia, 'Times New Roman', serif;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.anomaly-info-btn:hover {
+  background: rgba(238, 113, 37, 0.25);
+  color: rgba(238, 113, 37, 1);
+  border-color: rgba(238, 113, 37, 0.4);
+  transform: scale(1.1);
+}
+
+/* Anomaly Info Popup (hover tooltip anchored to button) */
+.anomaly-info-modal {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 340px;
+  max-height: min(70vh, calc(100vh - 120px));
+  overflow-y: auto;
+  background: rgba(255, 252, 249, 0.97);
+  border: 1px solid rgba(238, 113, 37, 0.15);
+  border-radius: 16px;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.12),
+    0 0 16px rgba(238, 113, 37, 0.1);
+  animation: anomalyInfoIn 0.35s var(--ease-out-expo);
+  overscroll-behavior: contain;
+  z-index: 200;
+  cursor: default;
+}
+
+.anomaly-info-modal.flip-above {
+  top: auto;
+  bottom: calc(100% + 10px);
+  animation: anomalyInfoInFlip 0.35s var(--ease-out-expo);
+}
+
+@keyframes anomalyInfoIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes anomalyInfoInFlip {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.anomaly-info-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.anomaly-info-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.anomaly-info-body {
+  padding: 12px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.anomaly-info-section h4 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  margin: 0 0 6px;
+}
+
+.anomaly-info-section p {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.anomaly-info-formula {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  padding: 10px 14px;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.anomaly-info-formula code {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+.anomaly-info-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px !important;
+  color: var(--text-tertiary) !important;
+}
+
+.anomaly-info-legend span {
+  display: block;
+}
+
+.anomaly-info-example {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.anomaly-info-example-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 2px 0;
+}
+
+.anomaly-info-example-row.highlight-spike {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.anomaly-info-example-label {
+  font-weight: 600;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.anomaly-info-example-row.highlight-spike .anomaly-info-example-label {
+  color: #FF3B30;
+}
+
+.anomaly-info-example-value {
+  text-align: right;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 10.5px;
+}
+
+.anomaly-info-example-verdict {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 0 2px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  margin-top: 2px;
+}
+
+.anomaly-info-example-verdict.spike {
+  color: #FF3B30;
+}
+
+.anomaly-info-example-verdict.drop {
+  color: #007AFF;
+}
+
+.anomaly-info-section ul {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.anomaly-info-section ul li {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
 /* Display Toggle */
 .chart-display-toggle {
   display: flex;
+  align-items: center;
   gap: 2px;
-  padding: 3px;
+  height: 34px;
+  padding: 0 3px;
   background: rgba(0, 0, 0, 0.04);
   border-radius: 10px;
   animation: chartToggleGlow 4s ease-in-out infinite;
@@ -309,7 +545,8 @@
 
 .display-toggle-btn {
   position: relative;
-  padding: 8px 14px;
+  height: 28px;
+  padding: 0 14px;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-tertiary);
