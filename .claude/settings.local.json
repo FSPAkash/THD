@@ -22,7 +22,13 @@
       "WebFetch(domain:web.dev)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:developer.chrome.com)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(git rev-list:*)",
+      "Bash(git cat-file:*)",
+      "Bash(sort:*)",
+      "Bash(git count-objects:*)",
+      "Bash(ls:*)",
+      "Bash(git rm:*)"
     ]
   }
 }
