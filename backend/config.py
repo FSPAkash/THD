@@ -31,5 +31,15 @@ class Config:
             'password': 'c123',
             'role': 'viewer',
             'name': 'Connor'
+        },
+        'Sanjay': {
+            'password': 's123',
+            'role': 'viewer',
+            'name': 'Sanjay'
+        },
+        'Sagar': {
+            'password': 's123',
+            'role': 'viewer',
+            'name': 'Sagar'
         }
     }
